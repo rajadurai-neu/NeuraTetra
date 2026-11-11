@@ -27,3 +27,4 @@ def test_serves_spa_and_keeps_api(tmp_path):
     assert c.get("/../../etc/passwd").text == "<html>cnat</html>"  # no escaping the folder
     assert c.get("/api/health").json() == {"ok": True}
     assert c.get("/api/nope").status_code == 404
+    assert c.get("/.auth/login/aad").status_code == 404           # sign-in not on: no UI, no loop

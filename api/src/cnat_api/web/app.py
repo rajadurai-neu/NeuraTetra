@@ -247,7 +247,9 @@ def mount_web(app: FastAPI, dist: Path) -> None:
 
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str):
-        if path.startswith("api/"):
+        # /.auth/* belongs to App Service sign-in. If it reaches us, sign-in isn't turned on:
+        # answer 404 rather than the UI, or the UI's login redirect would loop forever.
+        if path.startswith(("api/", ".auth/")):
             raise HTTPException(404, "Not found.")
         f = (dist / path).resolve()
         if path and f.is_file() and f.is_relative_to(dist.resolve()):

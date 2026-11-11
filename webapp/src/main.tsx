@@ -17,8 +17,9 @@ function Gate() {
     return (
       <div className="card empty">
         <h1>Sign in</h1>
-        <p>{import.meta.env.DEV ? "Choose a dev user at the top right." : "Redirecting to Microsoft sign-in…"}</p>
-        {error && <p className="small muted">{error}</p>}
+        {import.meta.env.DEV ? <p>Choose a dev user at the top right.</p>
+          : !error && <p>Redirecting to Microsoft sign-in…</p>}
+        {error && <p className="alert" role="alert">{error}</p>}
       </div>
     );
   }

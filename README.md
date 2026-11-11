@@ -16,7 +16,9 @@ backend/cnat/
   engine/pipeline.py           rules -> AI -> scoring (one pipeline for every note source)
   providers/ai.py              Claude client: Azure AI Foundry | Anthropic API | none
   connectors/openemr/          read-only OAuth client for OpenEMR
-  db/ services/ api/ jobs/     next phases
+  db/                          tables, repository, AI review cache, append-only audit log
+  services/assessments.py      assess / re-assess, history, not-applicable, signing, fix-first list
+  api/ jobs/                   next phases
 backend/tests/                 tests + synthetic sample notes with expected results
 scripts/                       assess_note.py, openemr_register.py, openemr_probe.py
 ```

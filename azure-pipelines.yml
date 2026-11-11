@@ -1,9 +1,10 @@
 # Azure DevOps pipeline: test -> package -> deploy to App Service (UI + API in one app).
 #
-# Settings come from the variable group "cnat-azure" (Pipelines > Library > Variable groups):
-#   azureServiceConnection   name of the Azure Resource Manager service connection (e.g. SC_TrialSub)
-#   webAppName               the App Service *name* as shown in the portal (e.g. cnat-neuratetra),
-#                            not its default domain
+# Settings:
+#   azureServiceConnection   set below. It must be in the YAML: Azure DevOps authorizes service
+#                            connections before variable groups are loaded.
+#   webAppName               from the variable group "cnat-azure" (Pipelines > Library): the App
+#                            Service *name* as shown in the portal (e.g. cnat-neuratetra)
 # The App Service itself (Linux, Python 3.13), Azure SQL and sign-in are set up once,
 # by hand or with deploy/azure.sh setup. See deploy/README.md.
 
@@ -17,6 +18,8 @@ pr:
 
 variables:
   - group: cnat-azure
+  - name: azureServiceConnection
+    value: SC_TrialSub
   - name: pythonVersion
     value: '3.13'
   - name: nodeVersion
@@ -73,7 +76,7 @@ stages:
                   name: deployApp
                   displayName: Deploy to App Service
                   inputs:
-                    azureSubscription: $(azureServiceConnection)
+                    azureSubscription: ${{ variables.azureServiceConnection }}
                     appType: webAppLinux
                     appName: $(webAppName)
                     package: $(Pipeline.Workspace)/app/cnat-app.zip

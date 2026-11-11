@@ -37,7 +37,7 @@ deploy/azure.sh deploy    # builds the UI, packages the app, deploys it
 One-time setup in Azure DevOps:
 1. **Project settings → Service connections → New → Azure Resource Manager**, scoped to the `cnat-rg` resource group.
 2. **Pipelines → New pipeline → GitHub → this repo**. It picks up `azure-pipelines.yml`.
-3. **Pipelines → Library → + Variable group** named `cnat-azure`, with two variables: `azureServiceConnection` (the connection name) and `webAppName` (the App Service name). Under **Pipeline permissions**, allow this pipeline to use the group.
+3. **Pipelines → Library → + Variable group** named `cnat-azure`, with one variable: `webAppName` (the App Service name). The service connection name is set in `azure-pipelines.yml` itself, because Azure DevOps checks it before variable groups load. Under **Pipeline permissions**, allow this pipeline to use the group.
 4. Optional: under **Environments → cnat-production → Approvals and checks**, add an approval before deploys.
 
 The pipeline only deploys code. The App Service, Azure SQL and sign-in are created once, either by `deploy/azure.sh setup` or by hand.

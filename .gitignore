@@ -10,3 +10,4 @@ node_modules/
 *.egg-info/
 build/
 deploy/.azure-state
+*.secret.txt

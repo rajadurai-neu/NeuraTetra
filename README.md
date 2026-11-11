@@ -27,7 +27,7 @@ api/src/cnat_api/
   db/              tables, repository, AI review cache, append-only audit log
   connectors/      OpenEMR read-only OAuth client
   providers/       Claude client (Azure AI Foundry | Anthropic API | none)
-  jobs/            OpenEMR polling (next phase)
+  jobs/            OpenEMR draft-note polling
   config.py, timefmt.py, main.py
 api/scripts/       assess_note.py, openemr_register.py, openemr_probe.py
 ```
@@ -71,6 +71,18 @@ Then, as an OpenEMR admin:
 2. **Administration → Config → Connectors**: turn on the Standard REST API, its **system scopes**, and the FHIR API; set Site Address Override to the server URL.
 
 Check it with `.venv/bin/python api/scripts/openemr_probe.py`.
+
+### Draft-note intake
+With the client registered, the API pulls SOAP notes from OpenEMR and assesses the ones that changed
+(unchanged drafts are skipped, so polling costs no AI calls). Settings in `api/.env`:
+`OPENEMR_SYNC_MINUTES` (0 = off), `OPENEMR_LOOKBACK_DAYS`, `OPENEMR_DEFAULT_PROGRAM`.
+
+- Run once now (admin/QA): `POST /api/admin/openemr/sync`
+- Last run (admin/QA): `GET /api/admin/openemr/status`
+
+OpenEMR's standard API has no modality, participants, service code, telehealth consent/location or
+treatment plan. Notes from OpenEMR declare these as unavailable, and the rules that need them are skipped
+rather than reported as false "missing" issues. Start/end times come from the matching appointment.
 
 ## Rules
 Rule wording, severities, CPT time ranges and the documentation deadline are **starter values** and must be

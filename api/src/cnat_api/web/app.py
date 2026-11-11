@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from contextlib import asynccontextmanager
 from datetime import date
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -198,6 +199,34 @@ def build_router() -> APIRouter:
     def admin_ping():
         return {"ok": True}
 
+    # ---------- OpenEMR intake ----------
+    def _sync(request: Request):
+        sync = getattr(request.app.state, "openemr_sync", None)
+        if sync is None:
+            raise HTTPException(404, "OpenEMR intake is not configured.")
+        return sync
+
+    def _report(rep) -> dict:
+        if rep is None:
+            return {"last_run": None}
+        d = dict(vars(rep))
+        d["started_at_display"] = fmt_et(rep.started_at)
+        d["finished_at_display"] = fmt_et(rep.finished_at)
+        return {"last_run": d}
+
+    @r.get("/admin/openemr/status", dependencies=[Depends(require(Role.ADMIN, Role.QA))])
+    def openemr_status(request: Request):
+        sync = _sync(request)
+        sched = getattr(request.app.state, "openemr_scheduler", None)
+        return {"scheduled_every_minutes": sched.interval / 60 if sched else None, **_report(sync.last)}
+
+    @r.post("/admin/openemr/sync", dependencies=[Depends(require(Role.ADMIN, Role.QA))])
+    def openemr_sync_now(request: Request):
+        try:
+            return _report(_sync(request).run_once())
+        except RuntimeError as e:
+            raise HTTPException(409, str(e))
+
     return r
 
 
@@ -209,10 +238,21 @@ def svc_has(svc: AssessmentService, note_id: str) -> bool:
         return False
 
 
-def create_app(service: AssessmentService, auth_settings: AuthSettings | None = None) -> FastAPI:
-    app = FastAPI(title="Clinical Notes Assessment Tool", version="0.1.0")
+def create_app(service: AssessmentService, auth_settings: AuthSettings | None = None,
+               openemr_sync=None, openemr_scheduler=None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        if openemr_scheduler:
+            openemr_scheduler.start()
+        yield
+        if openemr_scheduler:
+            openemr_scheduler.stop()
+
+    app = FastAPI(title="Clinical Notes Assessment Tool", version="0.1.0", lifespan=lifespan)
     app.state.service = service
     app.state.auth_settings = auth_settings or AuthSettings()
+    app.state.openemr_sync = openemr_sync
+    app.state.openemr_scheduler = openemr_scheduler
     app.include_router(build_router())
 
     @app.exception_handler(ValueError)

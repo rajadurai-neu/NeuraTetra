@@ -22,7 +22,7 @@ class OpenEMRSettings(BaseSettings):
         extra="ignore",
     )
 
-    base_url: str
+    base_url: str = ""
     site: str = "default"
     client_id: str = ""
     client_secret: str = ""
@@ -31,6 +31,15 @@ class OpenEMRSettings(BaseSettings):
     scopes: str = "api:oemr system/patient.read system/encounter.read system/soap_note.read"
     allow_insecure_http: bool = False
     timeout_seconds: float = 20.0
+
+    # Intake (draft-note polling)
+    sync_minutes: float = 0          # 0 = off; e.g. 5 = poll every 5 minutes
+    lookback_days: int = 14          # only encounters this recent
+    default_program: str | None = None
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.base_url and self.client_id)
 
     @property
     def root(self) -> str:

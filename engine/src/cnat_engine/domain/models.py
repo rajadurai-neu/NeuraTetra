@@ -75,6 +75,13 @@ class NoteContext(BaseModel):
     prior_note_texts: list[str] = Field(default_factory=list)  # same client, for clone check
     is_signed: bool = False
 
+    # Fields the source system cannot supply (e.g. an EHR API with no modality field).
+    # Rules that need them are skipped instead of reporting false "missing" issues.
+    unavailable_fields: list[str] = Field(default_factory=list)
+
+    def can_check(self, field: str) -> bool:
+        return field not in self.unavailable_fields
+
     @property
     def duration_minutes(self) -> int | None:
         if self.start_time and self.end_time:

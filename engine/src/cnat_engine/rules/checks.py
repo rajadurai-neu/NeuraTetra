@@ -50,11 +50,15 @@ def _empty(v) -> bool:
 
 @check("required_field")
 def required_field(note: NoteContext, params: dict, as_of: datetime) -> CheckResult:
+    if not note.can_check(params["field"]):
+        return NA
     return fail() if _empty(getattr(note, params["field"], None)) else PASS
 
 
 @check("start_end_times")
 def start_end_times(note: NoteContext, params: dict, as_of: datetime) -> CheckResult:
+    if not note.can_check("start_time"):
+        return NA
     if not note.start_time or not note.end_time:
         return fail()
     if note.end_time <= note.start_time:
@@ -79,6 +83,8 @@ def duration_matches_code(note: NoteContext, params: dict, as_of: datetime) -> C
 
 @check("treatment_plan_active")
 def treatment_plan_active(note: NoteContext, params: dict, as_of: datetime) -> CheckResult:
+    if not note.can_check("treatment_plan"):
+        return NA
     tp, dos = note.treatment_plan, note.date_of_service
     if tp is None:
         return fail("No treatment plan found for this client.")
@@ -105,6 +111,8 @@ def treatment_plan_review_current(note: NoteContext, params: dict, as_of: dateti
 
 @check("telehealth_field")
 def telehealth_field(note: NoteContext, params: dict, as_of: datetime) -> CheckResult:
+    if not note.can_check(params["field"]):
+        return NA
     if note.modality not in (Modality.VIDEO, Modality.AUDIO_ONLY):
         return NA
     value = getattr(note, params["field"], None)

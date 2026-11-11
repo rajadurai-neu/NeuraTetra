@@ -123,3 +123,12 @@ def test_changed_note_gets_new_hash():
 def test_status_meets_when_clean():
     note, _ = load("good_progress")
     assert assess(note, RULESET, NoAIReviewer(), as_of=AS_OF).status == Status.MEETS
+
+
+def test_unavailable_fields_skip_rules_instead_of_failing():
+    note, _ = load("poor_progress")
+    note = note.model_copy(update={"unavailable_fields": ["start_time", "participants", "clinician_credentials"]})
+    a = assess(note, RULESET, NoAIReviewer(), as_of=AS_OF)
+    ids = {f.rule_id for f in a.findings}
+    assert not ids & {"P599-TIMES", "P599-PARTICIPANTS", "P599-CREDENTIALS"}
+    assert "OMH-RISK-SAFETY" in ids  # everything else still checked

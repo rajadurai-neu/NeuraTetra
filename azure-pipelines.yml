@@ -1,9 +1,5 @@
 # Azure DevOps pipeline: test -> package -> deploy to App Service (UI + API in one app).
-#
-# Settings (below):
-#   azureServiceConnection   Azure Resource Manager service connection. Must be in the YAML: Azure DevOps
-#                            authorizes service connections before variable groups are loaded.
-#   webAppName               the App Service *name* from its Overview page (not its default domain)
+
 # The App Service itself (Linux, Python 3.13), Azure SQL and sign-in are set up once,
 # by hand or with deploy/azure.sh setup. See deploy/README.md.
 
@@ -72,7 +68,7 @@ stages:
                   name: deployApp
                   displayName: Deploy to App Service
                   inputs:
-                    azureSubscription: ${{ variables.azureServiceConnection }}
+                    azureSubscription: $(azureServiceConnection)
                     appType: webAppLinux
                     appName: $(webAppName)
                     package: $(Pipeline.Workspace)/app/cnat-app.zip

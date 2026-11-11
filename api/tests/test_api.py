@@ -122,3 +122,14 @@ def test_roles_endpoint_guard(client):
 def test_ruleset_visible(client):
     body = client.get("/api/rulesets/current", headers=CLIN).json()
     assert body["version"].startswith("2026.11.0") and len(body["quality_measures"]) == 8
+
+
+def test_report_summary_scoped(client):
+    client.post("/api/notes/assess", json=note("poor_progress"), headers=CLIN)
+    client.post("/api/notes/assess", json=note("good_progress"), headers=CLIN)
+    body = client.get("/api/reports/summary", headers=QA).json()
+    assert body["notes_assessed"] == 2
+    assert body["first_pass_rate"] == 50.0
+    assert {s["status"]: s["count"] for s in body["status_counts"]}["does_not_meet_standards"] == 1
+    assert body["top_issues"][0]["count"] >= 1 and body["trend"][0]["notes"] == 2
+    assert client.get("/api/reports/summary", headers=OTHER).json()["notes_assessed"] == 0

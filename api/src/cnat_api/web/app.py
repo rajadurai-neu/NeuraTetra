@@ -12,6 +12,7 @@ from cnat_api.web.schemas import (
 )
 from cnat_api.web.security import AuthSettings, Role, User, can_see_note, current_user, require, scope_filters
 from cnat_engine.domain import NoteContext, NoteType
+from cnat_api.services import reports
 from cnat_api.services.assessments import AssessmentService
 from cnat_api.timefmt import fmt_et
 
@@ -171,6 +172,17 @@ def build_router() -> APIRouter:
                        limit=min(max(limit, 1), 500), offset=max(offset, 0))
         filters.update(scope_filters(user))  # scope always wins over requested filters
         return [QueueItem(**q, assessed_at_display=fmt_et(q["assessed_at"])) for q in _svc(request).queue(**filters)]
+
+    # ---------- reports ----------
+    @r.get("/reports/summary")
+    def report_summary(request: Request, program: str | None = None, clinician: str | None = None,
+                       note_type: str | None = None, date_from: date | None = None,
+                       date_to: date | None = None, user: User = Depends(current_user)):
+        """Dashboard numbers within the caller's scope (clinician: self; supervisor: team; QA: all)."""
+        filters = dict(program=program, clinician=clinician, note_type=note_type,
+                       date_from=date_from, date_to=date_to)
+        filters.update(scope_filters(user))
+        return reports.summary(_svc(request).sessions, **filters)
 
     # ---------- rules ----------
     @r.get("/rulesets/current")

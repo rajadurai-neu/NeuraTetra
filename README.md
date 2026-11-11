@@ -12,7 +12,7 @@ Dev EHR: OpenEMR 7.0.3 (synthetic data only).
 | [`engine/`](engine/) | `cnat_engine` Python package: domain types, rule checks, Claude reviewer, scoring, pipeline. No web/DB code | – | (installed into api) |
 | [`rulesets/`](rulesets/) | YAML rules (Part 599, OMH, SOAP, agency), quality measures, synthetic sample notes with expected results | – | (files loaded by api) |
 | [`api/`](api/) | `cnat_api` Python package: FastAPI routes, sign-in/roles, database, services, OpenEMR connector, scheduler | engine, rulesets | App Service |
-| [`webapp/`](webapp/) | React front end (next phase) | api | Static Web Apps |
+| [`webapp/`](webapp/) | React + TypeScript front end: queues, note result, assess a note, dashboard, rules | api | Static Web Apps |
 
 ```
 engine/src/cnat_engine/
@@ -49,6 +49,12 @@ cp api/.env.example api/.env      # then fill in values
 CNAT_DEV_AUTH=1 CNAT_AI_PROVIDER=none .venv/bin/python -m uvicorn cnat_api.main:app --port 8010
 ```
 Open http://localhost:8010/docs. Send `X-Dev-User` and `X-Dev-Role` (clinician | supervisor | qa | admin) headers.
+
+## Run the web app locally
+```bash
+cd webapp && npm install && npm run dev
+```
+Open http://localhost:5173 and pick a dev user at the top right.
 
 ## Assess a note from the command line
 ```bash

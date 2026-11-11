@@ -180,3 +180,25 @@ def list_notes(s: Session, *, clinician: str | None = None, supervisor: str | No
         q = q.where(NoteRow.is_signed.is_(signed))
     q = q.order_by(NoteRow.date_of_service.desc(), NoteRow.id).limit(limit).offset(offset)
     return [(n, a) for n, a in s.execute(q).all()]
+
+
+# ---------------- Reports ----------------
+
+def report_rows(s: Session, *, clinician=None, supervisor=None, program=None, note_type=None,
+                date_from=None, date_to=None):
+    """Notes in scope, each with its full assessment history (for dashboards)."""
+    q = select(NoteRow).options(
+        selectinload(NoteRow.assessments).selectinload(AssessmentRow.findings))
+    if clinician:
+        q = q.where(NoteRow.clinician_name == clinician)
+    if supervisor:
+        q = q.where(NoteRow.supervisor == supervisor)
+    if program:
+        q = q.where(NoteRow.program == program)
+    if note_type:
+        q = q.where(NoteRow.note_type == note_type)
+    if date_from:
+        q = q.where(NoteRow.date_of_service >= date_from)
+    if date_to:
+        q = q.where(NoteRow.date_of_service <= date_to)
+    return list(s.scalars(q))

@@ -30,7 +30,24 @@ deploy/azure.sh deploy    # builds the UI, packages the app, deploys it
 
 `setup` gives the person who ran it the **Admin** role. To add other people, go to Entra ID → Enterprise applications → *CNAT (…)* → Users and groups, and assign each person Clinician, Supervisor, QA or Admin.
 
-## CI/CD with Azure Pipelines
+## CI/CD with GitHub Actions (recommended)
+
+[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) runs on every push to `main`. It runs the tests, packages the app and deploys it. Pull requests only run the tests and build the package.
+
+One-time setup:
+1. **App Service → Settings → Configuration → General settings**: turn **SCM Basic Auth Publishing Credentials** **On**, then **Save**.
+2. **App Service → Overview → Download publish profile** (a `.PublishSettings` file).
+3. **GitHub → repo → Settings → Secrets and variables → Actions → New repository secret**:
+   name `AZURE_WEBAPP_PUBLISH_PROFILE`, value = the whole contents of that file.
+4. Delete the downloaded file. It contains a deploy password.
+5. Make sure the App Service has the startup command and the `SCM_DO_BUILD_DURING_DEPLOYMENT=true` setting (see the manual setup steps).
+
+The app name is set as `WEBAPP_NAME` at the top of the workflow. To require an approval before deploying, add reviewers under **Settings → Environments → production**.
+
+## CI/CD with Azure Pipelines (alternative)
+
+Use this instead of GitHub Actions only if your Azure DevOps organization has hosted parallel jobs. New organizations must request the free grant first.
+
 
 [`azure-pipelines.yml`](../azure-pipelines.yml) at the repo root runs on every push to `main`. It runs the tests, builds and packages the app with `deploy/package.sh`, and deploys it to the App Service. Pull requests run only the tests and the package step.
 

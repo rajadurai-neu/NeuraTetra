@@ -1,0 +1,100 @@
+# GitHub Actions: test -> package -> deploy to Azure App Service (UI + API in one app).
+#
+# One-time setup (see deploy/README.md):
+#   1. App Service > Configuration > General settings: SCM Basic Auth Publishing Credentials = On
+#   2. App Service > Overview > Download publish profile
+#   3. GitHub repo > Settings > Secrets and variables > Actions > New repository secret
+#        AZURE_WEBAPP_PUBLISH_PROFILE = <the whole publish profile file>
+# The startup command and app settings live on the App Service itself (deploy/README.md).
+
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  WEBAPP_NAME: cnat-neuratetra
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "20"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            engine/pyproject.toml
+            api/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e engine -e "api[test]"
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Build web UI and package app
+        run: deploy/package.sh "$RUNNER_TEMP/cnat-app.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: ${{ runner.temp }}/cnat-app.zip
+          retention-days: 7
+
+  deploy:
+    needs: test-and-package
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production   # add required reviewers under Settings > Environments if you want an approval
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app
+
+      - name: Deploy to App Service
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: cnat-app.zip
+
+      - name: Wait for the app to start
+        env:
+          URL: ${{ steps.deploy.outputs.webapp-url }}
+        run: |
+          echo "Checking $URL/api/health"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/health")
+            echo "health: $code"
+            # 200 = up; 302/401 = up behind Entra sign-in
+            case "$code" in 200|302|401) exit 0;; esac
+            sleep 10
+          done
+          echo "App did not come up in 5 minutes. Check App Service > Log stream."; exit 1

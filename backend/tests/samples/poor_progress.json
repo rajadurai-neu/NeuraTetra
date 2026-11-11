@@ -1,0 +1,45 @@
+{
+  "description": "SYNTHETIC - no real client data",
+  "note": {
+    "source": "manual",
+    "note_type": "progress_individual",
+    "client_id": "SYN-001",
+    "date_of_service": "2026-11-09",
+    "start_time": null,
+    "end_time": null,
+    "service_code": "90837",
+    "modality": "in_person",
+    "participants": [],
+    "clinician_name": "Synthetic Clinician",
+    "clinician_credentials": null,
+    "supervisor": "Synthetic Supervisor",
+    "program": "Adult Outpatient",
+    "clinic": "Clinic A",
+    "treatment_plan": {
+      "start_date": "2026-06-01",
+      "end_date": "2027-05-31",
+      "review_due": "2026-12-01",
+      "goals": [
+        "Reduce panic attacks from 4/week to 1/week",
+        "Return to attending classes 4 days/week"
+      ],
+      "interventions": [
+        "CBT for panic",
+        "Interoceptive exposure",
+        "Breathing retraining"
+      ]
+    },
+    "note_id": "S2",
+    "text": "Client doing fine. Talked about the week. Client said sometimes she thinks about suicide when stressed. Session went well. Will continue."
+  },
+  "expected": {
+    "status_rules": "does_not_meet_standards",
+    "rule_ids": [
+      "P599-TIMES",
+      "P599-CREDENTIALS",
+      "P599-PARTICIPANTS",
+      "OMH-RISK-SAFETY",
+      "SOAP-SECTIONS"
+    ]
+  }
+}

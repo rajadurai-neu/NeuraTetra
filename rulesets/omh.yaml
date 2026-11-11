@@ -1,0 +1,24 @@
+source: "OMH documentation standards"
+rules:
+  - id: OMH-TELE-LOCATION
+    element: Telehealth – client location
+    check: telehealth_field
+    params: {field: client_location}
+    severity: critical
+    issue: Client location during the telehealth session is not documented.
+    suggestion: Record where the client was during the session (e.g., home, school).
+
+  - id: OMH-TELE-CONSENT
+    element: Telehealth – consent
+    check: telehealth_field
+    params: {field: telehealth_consent}
+    severity: critical
+    issue: Telehealth consent is not documented.
+    suggestion: Note that the client's consent to telehealth was obtained or is on file.
+
+  - id: OMH-RISK-SAFETY
+    element: Risk / safety assessment
+    check: risk_language_has_safety_plan
+    severity: critical
+    issue: Risk language appears in the note without a documented safety assessment or plan.
+    suggestion: Document the risk assessment (e.g., ideation, plan, intent, means) and the safety plan or steps taken.

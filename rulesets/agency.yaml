@@ -1,0 +1,9 @@
+source: "Agency policy"
+rules:
+  - id: AGY-TIMELINESS
+    element: Timeliness
+    check: timeliness
+    params: {deadline_hours: 72, warn_hours_before: 24}
+    severity: warning
+    issue: The note is past (or close to) the agency documentation deadline.
+    suggestion: Complete and sign the note before the deadline.

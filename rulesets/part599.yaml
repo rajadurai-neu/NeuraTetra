@@ -1,0 +1,90 @@
+source: "14 NYCRR Part 599"
+rules:
+  - id: P599-DOS
+    element: Date of service
+    check: required_field
+    params: {field: date_of_service}
+    severity: critical
+    issue: Date of service is missing.
+    suggestion: Add the date the service was provided.
+
+  - id: P599-TIMES
+    element: Start/end time
+    check: start_end_times
+    severity: critical
+    issue: Start and end time are missing or invalid.
+    suggestion: Record the session start and end time; end must be after start.
+
+  - id: P599-DURATION-CODE
+    element: Duration
+    check: duration_matches_code
+    applies_to: {note_types: [progress_individual, progress_family, crisis_safety]}
+    params:
+      # minutes [min, max]; null = no upper limit. Confirm against agency billing guide.
+      code_ranges:
+        "90832": [16, 37]
+        "90834": [38, 52]
+        "90837": [53, null]
+        "90846": [26, null]
+        "90847": [26, null]
+        "90839": [30, 74]
+    severity: critical
+    issue: Documented duration does not support the service code.
+    suggestion: Check the start/end times or the service code so they agree.
+
+  - id: P599-SERVICE-TYPE
+    element: Type of service
+    check: required_field
+    params: {field: service_code}
+    severity: critical
+    issue: Type of service / service code is missing.
+    suggestion: Record the service type or billing code for this session.
+
+  - id: P599-MODALITY
+    element: Modality
+    check: required_field
+    params: {field: modality}
+    severity: critical
+    issue: Modality (in person, video, audio-only) is not documented.
+    suggestion: State whether the session was in person, by video, or audio-only.
+
+  - id: P599-PARTICIPANTS
+    element: Participants
+    check: required_field
+    params: {field: participants}
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, collateral_contact]}
+    severity: warning
+    issue: Participants present are not listed.
+    suggestion: List who attended the session (e.g., client, family member, collateral).
+
+  - id: P599-TP-ACTIVE
+    element: Treatment plan
+    check: treatment_plan_active
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, medication_management]}
+    severity: critical
+    issue: The service is not covered by an active treatment plan on the date of service.
+    suggestion: Make sure a current treatment plan covers this date before signing.
+
+  - id: P599-TP-REVIEW
+    element: Treatment plan review
+    check: treatment_plan_review_current
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, medication_management]}
+    severity: warning
+    issue: Treatment plan review is overdue.
+    suggestion: Complete the treatment plan review that was due.
+
+  - id: P599-CLINICIAN
+    element: Clinician
+    check: required_field
+    params: {field: clinician_name}
+    severity: critical
+    issue: Clinician name is missing.
+    suggestion: Make sure the note shows the rendering clinician.
+
+  - id: P599-CREDENTIALS
+    element: Clinician credentials
+    check: required_field
+    params: {field: clinician_credentials}
+    severity: critical
+    issue: Clinician credentials are missing.
+    suggestion: Add the clinician's license or credential (e.g., LCSW, LMHC).

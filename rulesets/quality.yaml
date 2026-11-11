@@ -1,0 +1,35 @@
+# Clinical quality measures scored 0-3 by the AI reviewer.
+version: "q1"
+measures:
+  - id: patient_centeredness
+    name: Patient-centeredness
+    description: The client's own words, goals and preferences are reflected.
+    anchors: {0: "Absent", 1: "Generic mention", 2: "Client voice present", 3: "Client voice and goals clearly drive the note"}
+  - id: treatment_plan_link
+    name: Link to treatment plan goals
+    description: Session work is tied to specific treatment plan goals/objectives.
+    anchors: {0: "No link", 1: "Vague reference", 2: "Names a goal", 3: "Names goal/objective and progress on it"}
+  - id: intervention_response
+    name: Interventions and client response
+    description: Specific interventions are named and the client's response is described.
+    anchors: {0: "Neither", 1: "Intervention only, vague", 2: "Intervention and response, one vague", 3: "Both specific"}
+  - id: measurable_progress
+    name: Measurable progress
+    description: Progress is described in observable or measurable terms, not "doing fine".
+    anchors: {0: "None", 1: "Vague", 2: "Partly measurable", 3: "Clearly measurable"}
+  - id: medical_necessity
+    name: Medical necessity
+    description: Symptoms/functional impairment justify the service.
+    anchors: {0: "Absent", 1: "Implied", 2: "Stated", 3: "Stated and linked to diagnosis/impairment"}
+  - id: risk_assessment
+    name: Risk assessment where needed
+    description: Risk is assessed when indicated and the response is documented.
+    anchors: {0: "Indicated but absent", 1: "Mentioned only", 2: "Assessed", 3: "Assessed with plan", "n/a": "Not indicated"}
+  - id: soap_content
+    name: SOAP section content
+    description: Each section holds the right kind of content (no interpretation in Subjective, etc.).
+    anchors: {0: "Mostly misplaced", 1: "Several misplaced", 2: "Minor issues", 3: "Correct"}
+  - id: clear_plan
+    name: Clear plan
+    description: Next steps, follow-up and next session are stated.
+    anchors: {0: "None", 1: "Vague", 2: "Partly clear", 3: "Specific next steps and next session"}

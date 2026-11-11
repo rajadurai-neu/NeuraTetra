@@ -1,0 +1,30 @@
+{
+  "description": "SYNTHETIC - no real client data",
+  "note": {
+    "source": "manual",
+    "note_type": "progress_individual",
+    "client_id": "SYN-001",
+    "date_of_service": "2026-11-09",
+    "start_time": "2026-11-09T10:00:00",
+    "end_time": "2026-11-09T10:55:00",
+    "service_code": "90837",
+    "modality": "in_person",
+    "participants": [
+      "Client"
+    ],
+    "clinician_name": "Synthetic Clinician",
+    "clinician_credentials": "LCSW",
+    "supervisor": "Synthetic Supervisor",
+    "program": "Adult Outpatient",
+    "clinic": "Clinic A",
+    "treatment_plan": null,
+    "note_id": "S6",
+    "text": "S: Client reported 2 panic attacks this week, down from 4 last week. Client stated, \"I made it to class three days and only left early once.\" Client wants to work on riding the subway alone.\nO: Client arrived on time, casually dressed, good eye contact. Affect anxious at start, brighter by end of session. Speech normal rate. Thought process linear. Denies SI/HI.\nA: Client is making measurable progress toward Goal 1 (panic attacks 4/week to 2/week) and Goal 2 (class attendance 3 days/week). Client engaged in interoceptive exposure (spinning, 3 trials) and rated peak anxiety 7/10 dropping to 3/10, showing improved tolerance. Continued panic symptoms and avoidance still limit daily functioning, supporting continued weekly treatment.\nP: Continue weekly CBT for panic. Client will practice breathing retraining daily and log attacks. Begin subway exposure hierarchy next session. Next session 11/16/2026 10:00 AM."
+  },
+  "expected": {
+    "status_rules": "does_not_meet_standards",
+    "rule_ids": [
+      "P599-TP-ACTIVE"
+    ]
+  }
+}

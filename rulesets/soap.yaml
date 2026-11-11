@@ -1,0 +1,17 @@
+source: "SOAP format"
+rules:
+  - id: SOAP-SECTIONS
+    element: SOAP structure
+    check: soap_sections_present
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, medication_management]}
+    severity: warning
+    issue: One or more SOAP sections are missing.
+    suggestion: Include Subjective, Objective, Assessment and Plan sections.
+
+  - id: SOAP-CLONE
+    element: Whole note
+    check: cloned_content
+    params: {threshold: 0.85, min_words: 40}
+    severity: warning
+    issue: Note text is identical or nearly identical to an earlier note for this client.
+    suggestion: Describe what happened in this specific session rather than reusing prior text.

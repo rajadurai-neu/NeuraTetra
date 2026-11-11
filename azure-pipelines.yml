@@ -16,14 +16,10 @@ pr:
     include: [main]
 
 variables:
-  - name: azureServiceConnection
-    value: SC_TrialSub
-  - name: webAppName
-    value: cnat-neuratetra
-  - name: pythonVersion
-    value: '3.13'
-  - name: nodeVersion
-    value: '20.x'
+  azureServiceConnection: 'SC_TrialSub'
+  webAppName: 'cnat-neuratetra'
+  pythonVersion: '3.13'
+  nodeVersion: '20.x'
 
 stages:
   - stage: Build

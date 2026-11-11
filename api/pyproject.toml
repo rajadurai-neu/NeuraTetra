@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cnat-api"
+version = "0.1.0"
+description = "Clinical Notes Assessment API: web routes, database, OpenEMR connector, scheduler."
+requires-python = ">=3.11"
+dependencies = [
+  "cnat-engine",
+  "fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9",
+  "sqlalchemy>=2.0", "pydantic-settings>=2.5", "python-dotenv>=1.0",
+  "httpx>=0.27", "pyjwt[crypto]>=2.9", "cryptography>=43",
+  "anthropic>=0.70",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3", "respx>=0.21"]
+azure-sql = ["pyodbc>=5.1"]   # plus Microsoft ODBC Driver 18 on the host
+
+[tool.setuptools.packages.find]
+where = ["src"]

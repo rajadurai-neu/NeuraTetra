@@ -1,0 +1,5 @@
+# Install both packages from the repo root (editable for development):
+#   python -m pip install -e engine -e "api[test]"
+# For deployment the engine is installed from the same repo:
+-e ../engine
+-e .

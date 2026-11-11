@@ -1,8 +1,9 @@
 # Azure DevOps pipeline: test -> package -> deploy to App Service (UI + API in one app).
 #
-# Before the first run, set these pipeline variables (Pipelines > Edit > Variables):
-#   azureServiceConnection   name of your Azure Resource Manager service connection
-#   webAppName               the App Service name (e.g. cnat-ab12cd)
+# Settings come from the variable group "cnat-azure" (Pipelines > Library > Variable groups):
+#   azureServiceConnection   name of the Azure Resource Manager service connection (e.g. SC_TrialSub)
+#   webAppName               the App Service *name* as shown in the portal (e.g. cnat-neuratetra),
+#                            not its default domain
 # The App Service itself (Linux, Python 3.13), Azure SQL and sign-in are set up once,
 # by hand or with deploy/azure.sh setup. See deploy/README.md.
 
@@ -15,8 +16,11 @@ pr:
     include: [main]
 
 variables:
-  pythonVersion: '3.13'
-  nodeVersion: '20.x'
+  - group: cnat-azure
+  - name: pythonVersion
+    value: '3.13'
+  - name: nodeVersion
+    value: '20.x'
 
 stages:
   - stage: Build
@@ -66,6 +70,7 @@ stages:
             deploy:
               steps:
                 - task: AzureWebApp@1
+                  name: deployApp
                   displayName: Deploy to App Service
                   inputs:
                     azureSubscription: $(azureServiceConnection)
@@ -77,8 +82,10 @@ stages:
                     appSettings: -SCM_DO_BUILD_DURING_DEPLOYMENT true -CNAT_DEV_AUTH 0
 
                 - script: |
+                    url="$(deployApp.AppServiceApplicationUrl)"   # the app's real URL, reported by the deploy task
+                    echo "Checking $url/api/health"
                     for i in $(seq 1 30); do
-                      code=$(curl -s -o /dev/null -w "%{http_code}" https://$(webAppName).azurewebsites.net/api/health)
+                      code=$(curl -s -o /dev/null -w "%{http_code}" "$url/api/health")
                       echo "health: $code"
                       # 200 = up; 302/401 = up behind Entra sign-in
                       case "$code" in 200|302|401) exit 0;; esac

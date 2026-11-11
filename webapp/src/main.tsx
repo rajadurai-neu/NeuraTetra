@@ -8,11 +8,13 @@ import { NewNote } from "./pages/NewNote";
 import { NoteResult } from "./pages/NoteResult";
 import { Queue } from "./pages/Queue";
 import { Rules } from "./pages/Rules";
+import { SignIn } from "./pages/SignIn";
 import "./styles.css";
 
 function Gate() {
-  const { me, loading, error } = useAuth();
+  const { me, loading, error, mode } = useAuth();
   if (loading) return <p className="empty">Loading…</p>;
+  if (!me && mode === "password") return <SignIn />;
   if (!me) {
     return (
       <div className="card empty">

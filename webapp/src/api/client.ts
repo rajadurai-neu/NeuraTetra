@@ -1,5 +1,5 @@
 import type {
-  AssessmentOut, BatchResult, HistoryItem, Me, QueueItem, RulesetOut, Summary,
+  AssessmentOut, AuthMode, BatchResult, HistoryItem, Me, QueueItem, RulesetOut, Summary,
 } from "./types";
 
 // Local dev only: the API trusts X-Dev-User / X-Dev-Role when CNAT_DEV_AUTH=1.
@@ -64,6 +64,10 @@ const qs = (params: Record<string, string | number | boolean | undefined | null>
 
 export const api = {
   me: () => request<Me>("/me"),
+  authConfig: () => request<{ mode: AuthMode }>("/auth/config"),
+  login: (username: string, password: string) =>
+    request<Me>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   queue: (f: Record<string, string | undefined>) => request<QueueItem[]>(`/queue${qs(f)}`),
   assessment: (id: string) => request<AssessmentOut>(`/notes/${encodeURIComponent(id)}/assessment`),
   history: (id: string) => request<HistoryItem[]>(`/notes/${encodeURIComponent(id)}/history`),

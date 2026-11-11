@@ -3,7 +3,7 @@ import { getDevUser } from "../api/client";
 import { DEV_USERS, useAuth } from "../lib/auth";
 
 export function Layout() {
-  const { me, has, switchDevUser } = useAuth();
+  const { me, mode, has, switchDevUser, signOut } = useAuth();
   const dev = getDevUser();
   const canSeeReports = has("supervisor", "qa", "admin");
 
@@ -12,14 +12,16 @@ export function Layout() {
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <span className="brand">Notes Assessment</span>
-        <nav className="nav" aria-label="Main">
+        {me && <nav className="nav" aria-label="Main">
           <NavLink to="/" end>{has("supervisor") ? "Team queue" : has("qa", "admin") ? "All notes" : "My drafts"}</NavLink>
           <NavLink to="/new">Assess a note</NavLink>
           {canSeeReports && <NavLink to="/dashboard">Dashboard</NavLink>}
           <NavLink to="/rules">Rules</NavLink>
-        </nav>
+        </nav>}
         <div className="user">
-          {import.meta.env.DEV ? (
+          {mode === "password" && me ? (
+            <span className="small">{me.name} · <button type="button" className="linkish" onClick={signOut}>Sign out</button></span>
+          ) : import.meta.env.DEV ? (
             <label className="row" style={{ margin: 0, fontWeight: 400 }}>
               <span className="small muted">Dev user</span>
               <select
@@ -38,7 +40,7 @@ export function Layout() {
               </select>
             </label>
           ) : (
-            me && <span className="small">{me.name} · <a href="/.auth/logout">Sign out</a></span>
+            me && <span className="small">{me.name} · <button type="button" className="linkish" onClick={signOut}>Sign out</button></span>
           )}
         </div>
       </header>

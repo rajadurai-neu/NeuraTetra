@@ -91,3 +91,8 @@ class BatchResult(BaseModel):
     status: str | None = None
     overall_score: float | None = None
     error: str | None = None
+
+
+class LoginIn(BaseModel):
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=256)

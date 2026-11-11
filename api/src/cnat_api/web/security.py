@@ -4,6 +4,8 @@ In Azure App Service, turn on Authentication ("Easy Auth") with Microsoft Entra 
 signs users in and passes their identity to the app in the X-MS-CLIENT-PRINCIPAL header, including the
 app roles assigned in Entra ID (Clinician / Supervisor / QA / Admin).
 
+Without Entra ID, the app's own sign-in page can be used instead (password_auth.py, CNAT_USERS).
+
 Locally, set CNAT_DEV_AUTH=1 and send X-Dev-User / X-Dev-Role headers instead.
 """
 from __future__ import annotations
@@ -68,9 +70,21 @@ def _from_easy_auth(request: Request) -> User | None:
     return User(name=name or "unknown", roles=_roles(roles)) if name else None
 
 
+def _from_session(request: Request) -> User | None:
+    """Built-in sign-in (password_auth.py), used when App Service sign-in isn't available."""
+    pw = getattr(request.app.state, "password_auth", None)
+    if pw is None or not pw.enabled:
+        return None
+    from cnat_api.web.password_auth import COOKIE
+    acc = pw.read_session(request.cookies.get(COOKIE))
+    return User(name=acc.name, roles=_roles(acc.roles)) if acc else None
+
+
 def current_user(request: Request) -> User:
     settings: AuthSettings = request.app.state.auth_settings
     user = _from_easy_auth(request)
+    if user is None:
+        user = _from_session(request)
     if user is None and settings.dev_auth:
         name = request.headers.get("x-dev-user")
         if name:

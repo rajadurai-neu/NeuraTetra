@@ -6,13 +6,14 @@ from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from cnat_api.web.schemas import (
-    AssessmentOut, BatchResult, HistoryItem, NoteIn, NotApplicableIn, QueueItem,
+    AssessmentOut, BatchResult, HistoryItem, LoginIn, NoteIn, NotApplicableIn, QueueItem,
 )
+from cnat_api.web.password_auth import COOKIE, PasswordAuth
 from cnat_api.web.security import AuthSettings, Role, User, can_see_note, current_user, require, scope_filters
 from cnat_engine.domain import NoteContext, NoteType
 from cnat_api.services import reports
@@ -51,6 +52,31 @@ def build_router() -> APIRouter:
 
     @r.get("/health")
     def health():
+        return {"ok": True}
+
+    # ---------- built-in sign-in (when App Service sign-in isn't used) ----------
+    @r.get("/auth/config")
+    def auth_config(request: Request):
+        pw = request.app.state.password_auth
+        return {"mode": "password" if pw.enabled else "easyauth"}
+
+    @r.post("/auth/login")
+    def login(body: LoginIn, request: Request, response: Response):
+        pw = request.app.state.password_auth
+        if not pw.enabled:
+            raise HTTPException(404, "Built-in sign-in is not turned on.")
+        if pw.locked(body.username.strip().lower()):
+            raise HTTPException(429, "Too many attempts. Try again in a few minutes.")
+        acc = pw.authenticate(body.username, body.password)
+        if acc is None:
+            raise HTTPException(401, "Wrong username or password.")
+        response.set_cookie(COOKIE, pw.make_session(acc), max_age=int(pw.settings.session_hours * 3600),
+                            httponly=True, secure=pw.settings.cookie_secure, samesite="lax", path="/")
+        return {"name": acc.name, "roles": sorted(acc.roles)}
+
+    @r.post("/auth/logout")
+    def logout(response: Response):
+        response.delete_cookie(COOKIE, path="/")
         return {"ok": True}
 
     @r.get("/me")
@@ -258,7 +284,8 @@ def mount_web(app: FastAPI, dist: Path) -> None:
 
 
 def create_app(service: AssessmentService, auth_settings: AuthSettings | None = None,
-               openemr_sync=None, openemr_scheduler=None, web_dist: Path | None = None) -> FastAPI:
+               openemr_sync=None, openemr_scheduler=None, web_dist: Path | None = None,
+               password_auth: PasswordAuth | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         if openemr_scheduler:
@@ -270,6 +297,7 @@ def create_app(service: AssessmentService, auth_settings: AuthSettings | None = 
     app = FastAPI(title="Clinical Notes Assessment Tool", version="0.1.0", lifespan=lifespan)
     app.state.service = service
     app.state.auth_settings = auth_settings or AuthSettings()
+    app.state.password_auth = password_auth or PasswordAuth()
     app.state.openemr_sync = openemr_sync
     app.state.openemr_scheduler = openemr_scheduler
     app.include_router(build_router())

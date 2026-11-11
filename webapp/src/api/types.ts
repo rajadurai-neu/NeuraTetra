@@ -12,6 +12,7 @@ export const NOTE_TYPES = [
 export type NoteType = (typeof NOTE_TYPES)[number];
 
 export interface Me { name: string; roles: Role[] }
+export type AuthMode = "password" | "easyauth";
 
 export interface Finding {
   rule_id: string;

@@ -1,13 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError, getDevUser, setDevUser, type DevUser } from "../api/client";
-import type { Me, Role } from "../api/types";
+import type { AuthMode, Me, Role } from "../api/types";
 
 interface AuthState {
   me: Me | null;
   loading: boolean;
   error: string | null;
+  /** "password": the app's own sign-in page; "easyauth": App Service (Microsoft) sign-in. */
+  mode: AuthMode | null;
   has: (...roles: Role[]) => boolean;
   switchDevUser: (u: DevUser | null) => void;
+  signIn: (username: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -50,29 +54,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [devVersion, setDevVersion] = useState(0);
+  const [mode, setMode] = useState<AuthMode | null>(null);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    api.me()
-      .then((m) => { setMe(m); setError(null); clearSignInAttempt(); })
-      .catch((e: unknown) => {
+    (async () => {
+      try {
+        const m = await api.me();
+        if (cancelled) return;
+        setMe(m);
+        setError(null);
+        clearSignInAttempt();
+        api.authConfig().then((c) => !cancelled && setMode(c.mode)).catch(() => undefined);
+      } catch (e: unknown) {
+        if (cancelled) return;
         setMe(null);
-        if (e instanceof ApiError && e.status === 401 && !import.meta.env.DEV) {
+        if (e instanceof ApiError && e.status === 401) {
+          const cfg = await api.authConfig().catch(() => ({ mode: "easyauth" as AuthMode }));
+          if (cancelled) return;
+          setMode(cfg.mode);
+          if (cfg.mode === "password" || import.meta.env.DEV) return; // sign-in form / dev user picker
           if (startSignIn()) return;
           setError("Sign-in didn't complete. If this keeps happening, App Service sign-in (Authentication) "
             + "may not be turned on for this site.");
           return;
         }
         setError(e instanceof Error ? e.message : "Sign-in failed");
-      })
-      .finally(() => setLoading(false));
-  }, [devVersion]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [version]);
 
   const has = useCallback((...roles: Role[]) => !!me && me.roles.some((r) => roles.includes(r)), [me]);
-  const switchDevUser = useCallback((u: DevUser | null) => { setDevUser(u); setDevVersion((v) => v + 1); }, []);
+  const switchDevUser = useCallback((u: DevUser | null) => { setDevUser(u); setVersion((v) => v + 1); }, []);
+  const signIn = useCallback(async (username: string, password: string) => {
+    await api.login(username, password);   // throws ApiError with a readable message on failure
+    setVersion((v) => v + 1);
+  }, []);
+  const signOut = useCallback(async () => {
+    if (mode === "password") {
+      await api.logout().catch(() => undefined);
+      setMe(null);
+      setVersion((v) => v + 1);
+    } else {
+      window.location.href = "/.auth/logout";
+    }
+  }, [mode]);
 
-  return <Ctx.Provider value={{ me, loading, error, has, switchDevUser }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ me, loading, error, mode, has, switchDevUser, signIn, signOut }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useAuth(): AuthState {

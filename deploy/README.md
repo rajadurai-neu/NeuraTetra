@@ -30,6 +30,33 @@ deploy/azure.sh deploy    # builds the UI, packages the app, deploys it
 
 `setup` gives the person who ran it the **Admin** role. To add other people, go to Entra ID → Enterprise applications → *CNAT (…)* → Users and groups, and assign each person Clinician, Supervisor, QA or Admin.
 
+## Sign-in
+
+There are two ways to sign in:
+
+- **Built-in sign-in (simplest; no Entra permissions needed).** The app shows its own sign-in page. Accounts live in one App Service setting, and passwords are stored only as hashes.
+- **Microsoft Entra ID (App Service Authentication).** Use this when you can create an app registration. If it's turned on, it takes priority automatically.
+
+### Built-in sign-in setup
+1. On your machine, run this once per person. It asks for the username, the full name used on notes, the roles and a password:
+   ```bash
+   .venv/bin/python api/scripts/hash_password.py
+   ```
+   It prints one JSON object per person, plus a random session secret the first time.
+2. **App Service → Settings → Environment variables → App settings**, add:
+
+   | Name | Value |
+   |---|---|
+   | `CNAT_USERS` | a JSON list of those objects: `[{"username": "admin", ...}, {"username": "jsmith", ...}]` |
+   | `CNAT_SESSION_SECRET` | the random secret (at least 32 characters, keep it private) |
+
+3. Click **Apply**. The app restarts, and the site shows the sign-in page.
+
+- **Roles:** `clinician`, `supervisor`, `qa`, `admin`. The full name must match the clinician or supervisor name on notes, because that's how each person's queue is scoped.
+- **Lockout:** 5 wrong passwords lock that username for 5 minutes.
+- **Sessions** last 12 hours (`CNAT_SESSION_HOURS`).
+- **To remove someone:** delete their entry from `CNAT_USERS`. They're signed out on their next request.
+
 ## CI/CD with GitHub Actions (recommended)
 
 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) runs on every push to `main`. It runs the tests, packages the app and deploys it. Pull requests only run the tests and build the package.

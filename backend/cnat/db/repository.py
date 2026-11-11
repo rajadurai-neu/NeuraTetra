@@ -151,3 +151,32 @@ def audit(s: Session, actor: str, action: str, record_type: str, record_id: str,
 def audit_trail(s: Session, record_type: str, record_id: str) -> list[AuditRow]:
     return list(s.scalars(select(AuditRow).where(AuditRow.record_type == record_type,
                                                  AuditRow.record_id == record_id).order_by(AuditRow.id)))
+
+
+# ---------------- Queues / filters (supervisor queue, QA filters) ----------------
+
+def list_notes(s: Session, *, clinician: str | None = None, supervisor: str | None = None,
+               program: str | None = None, note_type: str | None = None, status: str | None = None,
+               date_from=None, date_to=None, signed: bool | None = None,
+               limit: int = 200, offset: int = 0) -> list[tuple[NoteRow, AssessmentRow | None]]:
+    """Notes with their current assessment (if any), newest date of service first."""
+    q = (select(NoteRow, AssessmentRow)
+         .outerjoin(AssessmentRow, (AssessmentRow.note_id == NoteRow.id) & AssessmentRow.is_current.is_(True)))
+    if clinician:
+        q = q.where(NoteRow.clinician_name == clinician)
+    if supervisor:
+        q = q.where(NoteRow.supervisor == supervisor)
+    if program:
+        q = q.where(NoteRow.program == program)
+    if note_type:
+        q = q.where(NoteRow.note_type == note_type)
+    if status:
+        q = q.where(AssessmentRow.status == status)
+    if date_from:
+        q = q.where(NoteRow.date_of_service >= date_from)
+    if date_to:
+        q = q.where(NoteRow.date_of_service <= date_to)
+    if signed is not None:
+        q = q.where(NoteRow.is_signed.is_(signed))
+    q = q.order_by(NoteRow.date_of_service.desc(), NoteRow.id).limit(limit).offset(offset)
+    return [(n, a) for n, a in s.execute(q).all()]

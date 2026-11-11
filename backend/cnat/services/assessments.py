@@ -92,6 +92,42 @@ class AssessmentService:
             return self._run(s, self._stored_note(s, note_id), user, "na_update", now,
                              repo.current_assessment(s, note_id))
 
+    def clear_not_applicable(self, note_id: str, rule_id: str, user: str) -> Outcome:
+        now = self.clock()
+        with unit_of_work(self.sessions) as s:
+            repo.clear_not_applicable(s, note_id, rule_id)
+            repo.audit(s, user, "not_applicable_cleared", "note", note_id, now, {"rule_id": rule_id})
+            s.flush()
+            return self._run(s, self._stored_note(s, note_id), user, "na_update", now,
+                             repo.current_assessment(s, note_id))
+
+    def reassess(self, note_id: str, actor: str) -> Outcome:
+        """Re-run on the stored copy (e.g., after a rule set change)."""
+        now = self.clock()
+        with unit_of_work(self.sessions) as s:
+            return self._run(s, self._stored_note(s, note_id), actor, "on_demand", now,
+                             repo.current_assessment(s, note_id))
+
+    def note_people(self, note_id: str) -> tuple[str | None, str | None]:
+        """(clinician, supervisor) for access checks."""
+        with unit_of_work(self.sessions) as s:
+            row = repo.get_note(s, note_id)
+            if row is None:
+                raise KeyError(note_id)
+            return row.clinician_name, row.supervisor
+
+    def queue(self, **filters) -> list[dict]:
+        with unit_of_work(self.sessions) as s:
+            return [{
+                "note_id": n.id, "note_type": n.note_type, "client_id": n.client_id,
+                "clinician": n.clinician_name, "supervisor": n.supervisor, "program": n.program,
+                "clinic": n.clinic, "date_of_service": n.date_of_service, "is_signed": n.is_signed,
+                "signed_with_open_issues": n.signed_with_open_issues,
+                "status": a.status if a else None, "overall_score": a.overall_score if a else None,
+                "critical": a.critical_count if a else None, "warning": a.warning_count if a else None,
+                "assessed_at": a.assessed_at if a else None,
+            } for n, a in repo.list_notes(s, **filters)]
+
     # ---- signing ----
     def record_signed(self, note_id: str, user: str = "system") -> bool:
         """Record that the note was signed in the EHR. Returns True if it was signed with open issues (A7.32)."""

@@ -18,7 +18,8 @@ backend/cnat/
   connectors/openemr/          read-only OAuth client for OpenEMR
   db/                          tables, repository, AI review cache, append-only audit log
   services/assessments.py      assess / re-assess, history, not-applicable, signing, fix-first list
-  api/ jobs/                   next phases
+  api/                         FastAPI routes, sign-in + role-based access (App Service Easy Auth)
+  jobs/                        next phase (OpenEMR polling)
 backend/tests/                 tests + synthetic sample notes with expected results
 scripts/                       assess_note.py, openemr_register.py, openemr_probe.py
 ```
@@ -28,6 +29,12 @@ scripts/                       assess_note.py, openemr_register.py, openemr_prob
 backend/.venv/bin/python scripts/assess_note.py backend/tests/samples/poor_progress.json --no-ai
 ```
 Drop `--no-ai` once `CNAT_AI_*` settings are in `.env` (Claude in Azure AI Foundry).
+
+## Run the API locally
+```bash
+CNAT_DEV_AUTH=1 CNAT_AI_PROVIDER=none backend/.venv/bin/uvicorn cnat.api.main:app --app-dir backend --port 8010
+```
+Open http://localhost:8010/docs. Send `X-Dev-User` and `X-Dev-Role` (clinician | supervisor | qa | admin) headers.
 
 ## Connect to OpenEMR (OAuth, read-only)
 ```bash

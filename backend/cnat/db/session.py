@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from cnat.config import PROJECT_ROOT
 from cnat.db.tables import Base
@@ -26,6 +27,8 @@ def make_engine(url: str | None = None) -> Engine:
     kwargs = {"pool_pre_ping": True}
     if url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
+        if url in ("sqlite://", "sqlite:///:memory:"):
+            kwargs["poolclass"] = StaticPool  # one shared connection, or each thread sees an empty DB
     return create_engine(url, **kwargs)
 
 

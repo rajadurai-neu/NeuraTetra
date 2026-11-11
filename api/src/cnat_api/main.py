@@ -1,12 +1,13 @@
 """App entry point.
 Local:  .venv/bin/python -m uvicorn cnat_api.main:app --reload
 Azure App Service startup command:  python -m uvicorn cnat_api.main:app --host 0.0.0.0 --port 8000
+(see deploy/README.md; the same app also serves the built web UI when it is next to it)
 """
 import logging
 
 from cnat_engine.rules.ruleset import load_ruleset
 
-from cnat_api.config import OpenEMRSettings, ruleset_dir
+from cnat_api.config import OpenEMRSettings, ruleset_dir, web_dist_dir
 from cnat_api.db.session import init_db, make_engine, make_session_factory
 from cnat_api.providers.ai import build_reviewer
 from cnat_api.services.assessments import AssessmentService
@@ -35,4 +36,6 @@ if emr.configured:
 else:
     log.info("OpenEMR intake: not configured")
 
-app = create_app(service, openemr_sync=sync, openemr_scheduler=scheduler)
+web = web_dist_dir()
+log.info("Web UI: %s", web or "not built (API only)")
+app = create_app(service, openemr_sync=sync, openemr_scheduler=scheduler, web_dist=web)

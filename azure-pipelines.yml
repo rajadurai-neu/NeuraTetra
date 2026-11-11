@@ -1,0 +1,88 @@
+# Azure DevOps pipeline: test -> package -> deploy to App Service (UI + API in one app).
+#
+# Before the first run, set these pipeline variables (Pipelines > Edit > Variables):
+#   azureServiceConnection   name of your Azure Resource Manager service connection
+#   webAppName               the App Service name (e.g. cnat-ab12cd)
+# The App Service itself (Linux, Python 3.13), Azure SQL and sign-in are set up once,
+# by hand or with deploy/azure.sh setup. See deploy/README.md.
+
+trigger:
+  branches:
+    include: [main]
+
+pr:
+  branches:
+    include: [main]
+
+variables:
+  pythonVersion: '3.13'
+  nodeVersion: '20.x'
+
+stages:
+  - stage: Build
+    jobs:
+      - job: TestAndPackage
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -e engine -e "api[test]"
+            displayName: Install Python packages
+
+          - script: python -m pytest -q --junitxml=test-results.xml
+            displayName: Run tests
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFiles: test-results.xml
+              testRunTitle: CNAT tests
+
+          - script: deploy/package.sh $(Build.ArtifactStagingDirectory)/cnat-app.zip
+            displayName: Build web UI and package app
+
+          - publish: $(Build.ArtifactStagingDirectory)/cnat-app.zip
+            artifact: app
+
+  - stage: Deploy
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: AppService
+        pool:
+          vmImage: ubuntu-latest
+        environment: cnat-production   # add an approval check on this environment if you want one
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  displayName: Deploy to App Service
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    appType: webAppLinux
+                    appName: $(webAppName)
+                    package: $(Pipeline.Workspace)/app/cnat-app.zip
+                    runtimeStack: 'PYTHON|3.13'
+                    startUpCommand: python -m uvicorn cnat_api.main:app --host 0.0.0.0 --port 8000
+                    appSettings: -SCM_DO_BUILD_DURING_DEPLOYMENT true -CNAT_DEV_AUTH 0
+
+                - script: |
+                    for i in $(seq 1 30); do
+                      code=$(curl -s -o /dev/null -w "%{http_code}" https://$(webAppName).azurewebsites.net/api/health)
+                      echo "health: $code"
+                      # 200 = up; 302/401 = up behind Entra sign-in
+                      case "$code" in 200|302|401) exit 0;; esac
+                      sleep 10
+                    done
+                    echo "App did not come up in 5 minutes"; exit 1
+                  displayName: Wait for the app to start

@@ -9,10 +9,23 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]   # api/ (holds .env, keys/)
 REPO_ROOT = PROJECT_ROOT.parent
 
 
-def ruleset_dir() -> Path:
-    """Folder with the YAML rule sets. CNAT_RULESET_DIR overrides the repo default."""
+def _first_existing(env: str, *candidates: Path) -> Path:
     import os
-    return Path(os.environ.get("CNAT_RULESET_DIR") or REPO_ROOT / "rulesets")
+    if os.environ.get(env):
+        return Path(os.environ[env])
+    return next((c for c in candidates if c.exists()), candidates[0])
+
+
+def ruleset_dir() -> Path:
+    """Folder with the YAML rule sets: CNAT_RULESET_DIR, else the repo's rulesets/, else ./rulesets
+    (the Azure package puts it next to the app)."""
+    return _first_existing("CNAT_RULESET_DIR", REPO_ROOT / "rulesets", Path.cwd() / "rulesets")
+
+
+def web_dist_dir() -> Path | None:
+    """Built web app to serve from the API (Azure: one App Service for UI + API). None if not built."""
+    d = _first_existing("CNAT_WEB_DIST", Path.cwd() / "web", REPO_ROOT / "webapp" / "dist")
+    return d if (d / "index.html").exists() else None
 
 
 class OpenEMRSettings(BaseSettings):

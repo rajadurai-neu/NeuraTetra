@@ -4,9 +4,11 @@ from __future__ import annotations
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from cnat_api.web.schemas import (
     AssessmentOut, BatchResult, HistoryItem, NoteIn, NotApplicableIn, QueueItem,
@@ -238,8 +240,23 @@ def svc_has(svc: AssessmentService, note_id: str) -> bool:
         return False
 
 
+def mount_web(app: FastAPI, dist: Path) -> None:
+    """Serve the built React app; unknown paths fall back to index.html (client-side routes)."""
+    index = dist / "index.html"
+    app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str):
+        if path.startswith("api/"):
+            raise HTTPException(404, "Not found.")
+        f = (dist / path).resolve()
+        if path and f.is_file() and f.is_relative_to(dist.resolve()):
+            return FileResponse(f)
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+
 def create_app(service: AssessmentService, auth_settings: AuthSettings | None = None,
-               openemr_sync=None, openemr_scheduler=None) -> FastAPI:
+               openemr_sync=None, openemr_scheduler=None, web_dist: Path | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         if openemr_scheduler:
@@ -263,4 +280,6 @@ def create_app(service: AssessmentService, auth_settings: AuthSettings | None = 
     async def key_error(_, exc: KeyError):
         return JSONResponse(status_code=404, content={"detail": "Not found."})
 
+    if web_dist:
+        mount_web(app, web_dist)
     return app

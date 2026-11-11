@@ -1,5 +1,6 @@
 import base64
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -17,13 +18,14 @@ CLIN = {"X-Dev-User": "Synthetic Clinician", "X-Dev-Role": "clinician"}
 OTHER = {"X-Dev-User": "Someone Else", "X-Dev-Role": "clinician"}
 SUP = {"X-Dev-User": "Synthetic Supervisor", "X-Dev-Role": "supervisor"}
 QA = {"X-Dev-User": "QA Person", "X-Dev-Role": "qa"}
+NOW = datetime(2026, 11, 10, 15, 0, tzinfo=timezone.utc)  # fixed, so the 72-hour timeliness rule is stable
 
 
 @pytest.fixture
 def client():
     engine = make_engine("sqlite://")
     init_db(engine)
-    svc = AssessmentService(make_session_factory(engine), load_ruleset(SAMPLES.parent), NoAIReviewer())
+    svc = AssessmentService(make_session_factory(engine), load_ruleset(SAMPLES.parent), NoAIReviewer(), clock=lambda: NOW)
     return TestClient(create_app(svc, AuthSettings(dev_auth=True)))
 
 

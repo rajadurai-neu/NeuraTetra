@@ -96,3 +96,7 @@ reviewed by compliance staff. Bump `version` in `rulesets/manifest.yaml` on ever
 ## Known gap
 OpenEMR's APIs don't expose e-Sign status (draft vs signed). The next phase adds a small read-only
 OpenEMR module endpoint (or a DB view) for signature status.
+
+## Deploying to Azure
+
+See [deploy/README.md](deploy/README.md): one App Service (UI + API) plus Azure SQL, deployed by `azure-pipelines.yml` or `deploy/azure.sh`.

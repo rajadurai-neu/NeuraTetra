@@ -5,29 +5,31 @@ rules, SOAP format and clinical quality measures. **Assesses only: it never edit
 
 Dev EHR: OpenEMR 7.0.3 (synthetic data only).
 
+**Architecture and flow diagrams:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
 ## Repo layout (one repo, four parts)
 
 | Folder | What | Depends on | Runs on Azure as |
 |---|---|---|---|
-| [`engine/`](engine/) | `cnat_engine` Python package: domain types, rule checks, Claude reviewer, scoring, pipeline. No web/DB code | – | (installed into api) |
+| [`engine/`](engine/) | `cnat_engine` Python package: domain types, rule checks, AI reviewer, scoring, pipeline. No web/DB code | – | (installed into api) |
 | [`rulesets/`](rulesets/) | YAML rules (Part 599, OMH, SOAP, agency), quality measures, synthetic sample notes with expected results | – | (files loaded by api) |
 | [`api/`](api/) | `cnat_api` Python package: FastAPI routes, sign-in/roles, database, services, OpenEMR connector, scheduler | engine, rulesets | App Service |
-| [`webapp/`](webapp/) | React + TypeScript front end: queues, note result, assess a note, dashboard, rules | api | Static Web Apps |
+| [`webapp/`](webapp/) | React + TypeScript front end: queues, note result, assess a note, dashboard, rules, OpenEMR sync | api | App Service (served by api) |
 
 ```
 engine/src/cnat_engine/
   domain/          NoteContext, Finding, Assessment
   rules/           ruleset loader, check functions, runner
-  ai/              Claude reviewer + versioned prompt (prompts/v1.md)
+  ai/              AI reviewer (Claude) + versioned prompt (prompts/v1.md)
   scoring.py       status + compliance/quality/overall scores
   pipeline.py      rules -> AI -> scoring
 api/src/cnat_api/
-  web/             FastAPI app, schemas, sign-in + role-based access
+  web/             FastAPI app, schemas, sign-in (built-in or Entra ID) + role-based access
   services/        assess / re-assess, history, not-applicable, signing, queues
   db/              tables, repository, AI review cache, append-only audit log
-  connectors/      OpenEMR read-only OAuth client
-  providers/       Claude client (Azure AI Foundry | Anthropic API | none)
-  jobs/            OpenEMR draft-note polling
+  connectors/      OpenEMR read-only OAuth client, FHIR + Standard API mappers
+  providers/       AI provider: Anthropic API | Azure AI Foundry | Azure OpenAI | none
+  jobs/            OpenEMR draft-note polling (FHIR or Standard API source)
   config.py, timefmt.py, main.py
 api/scripts/       assess_note.py, openemr_register.py, openemr_probe.py
 ```

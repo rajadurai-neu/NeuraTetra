@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cnat-api",
+      "runtimeExecutable": "/usr/bin/env",
+      "runtimeArgs": [
+        "CNAT_DEV_AUTH=1",
+        "CNAT_AI_PROVIDER=none",
+        "CNAT_DATABASE_URL=sqlite:////private/tmp/claude-501/-Users-RajaduraiAz-NeuraTetra/7a8a9180-ea4c-4c74-8b24-07c30b3379de/scratchpad/cnat-dev.db",
+        ".venv/bin/python",
+        "-m",
+        "uvicorn",
+        "cnat_api.main:app",
+        "--port",
+        "8010"
+      ],
+      "port": 8010
+    },
+    {
+      "name": "cnat-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "webapp",
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    }
+  ]
+}

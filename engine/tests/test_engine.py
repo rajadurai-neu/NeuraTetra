@@ -69,7 +69,7 @@ class FakeReviewer:
     def __init__(self, output: AIReviewOutput):
         self.output, self.calls = output, 0
 
-    def review(self, note, measures):
+    def review(self, note, measures, elements=()):
         self.calls += 1
         return to_review_result(self.output, note, measures, self.model)
 
@@ -89,6 +89,7 @@ def fake_output():
         measure_scores=[AIMeasure(measure="clear_plan", score=1, finding="Vague"),
                         AIMeasure(measure="measurable_progress", score=0, finding="None"),
                         AIMeasure(measure="not_a_measure", score=3, finding="ignored")],
+        elements=[],
     )
 
 

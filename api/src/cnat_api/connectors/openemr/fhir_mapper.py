@@ -74,6 +74,63 @@ def find_appointment(appointments: list[dict], dos: date | None, practitioner_id
     return same_day[0] if len(same_day) == 1 else None
 
 
+# LOINC document codes OpenEMR may send on DocumentReference.type.
+LOINC_TYPES = {
+    "11506-3": NoteType.PROGRESS_INDIVIDUAL,       # Progress note
+    "18842-5": NoteType.DISCHARGE_SUMMARY,         # Discharge summary
+    "18776-5": NoteType.TREATMENT_PLAN,            # Plan of care note
+    "34117-2": NoteType.PSYCHIATRIC_EVALUATION,    # History and physical note
+    "11488-4": NoteType.PSYCHIATRIC_EVALUATION,    # Consult note
+}
+
+# Words in the note's type name or the visit reason -> note type. Most specific first.
+KEYWORD_TYPES = [
+    (("discharge",), NoteType.DISCHARGE_SUMMARY),
+    (("treatment plan review", "plan review", "tpr", "service plan review"), NoteType.TREATMENT_PLAN_REVIEW),
+    (("treatment plan", "service plan", "plan of care", "care plan"), NoteType.TREATMENT_PLAN),
+    (("psychiatric eval", "psych eval", "psychiatric assessment", "psychiatric diagnostic"),
+     NoteType.PSYCHIATRIC_EVALUATION),
+    (("psychosocial", "biopsychosocial", "intake assessment", "comprehensive assessment"),
+     NoteType.PSYCHOSOCIAL_ASSESSMENT),
+    (("crisis", "safety"), NoteType.CRISIS_SAFETY),
+    (("medication", "med management", "med check", "pharmacolog"), NoteType.MEDICATION_MANAGEMENT),
+    (("collateral",), NoteType.COLLATERAL_CONTACT),
+    (("group",), NoteType.PROGRESS_GROUP),
+    (("family", "couple"), NoteType.PROGRESS_FAMILY),
+    (("individual", "psychotherapy", "therapy", "counseling", "progress"), NoteType.PROGRESS_INDIVIDUAL),
+]
+
+
+def _keyword_type(text: str) -> NoteType | None:
+    t = " " + " ".join(text.lower().replace("-", " ").split()) + " "
+    for words, note_type in KEYWORD_TYPES:
+        if any(f" {w}" in t for w in words):
+            return note_type
+    return None
+
+
+def detect_note_type(doc: dict, encounter: dict | None,
+                     default: NoteType = NoteType.PROGRESS_INDIVIDUAL) -> tuple[NoteType, str]:
+    """(note type, where it came from). Order: the note's type name, the visit reason, the note's LOINC
+    code, then the configured default. Names win over a generic LOINC "progress note" so that
+    "Group therapy" becomes a group progress note."""
+    doc_type = doc.get("type") or {}
+    type_names = [doc_type.get("text") or ""] + [c.get("display") or "" for c in doc_type.get("coding") or []
+                                                 if (c.get("code") or "").upper() != "UNK"]
+    for name in filter(None, type_names):
+        found = _keyword_type(name)
+        if found:
+            return found, f"EHR note type: {name.strip()}"
+    for reason in (r.get("text") or "" for r in (encounter or {}).get("reasonCode") or []):
+        found = _keyword_type(reason)
+        if found:
+            return found, f"EHR visit reason: {reason.strip()}"
+    for c in doc_type.get("coding") or []:
+        if c.get("code") in LOINC_TYPES:
+            return LOINC_TYPES[c["code"]], f"EHR note code: LOINC {c['code']}"
+    return default, "default (not identified in the EHR)"
+
+
 def chart_number(patient: dict | None) -> str | None:
     for ident in (patient or {}).get("identifier") or []:
         codes = [c.get("code") for c in ((ident.get("type") or {}).get("coding") or [])]
@@ -101,8 +158,10 @@ def credentials(practitioner: dict | None) -> str | None:
 
 def to_note_context(*, doc: dict, patient: dict | None, encounter: dict | None, practitioner: dict | None,
                     clinic: str | None, default_program: str | None = None,
-                    appointment: dict | None = None) -> NoteContext:
+                    appointment: dict | None = None,
+                    default_note_type: NoteType = NoteType.PROGRESS_INDIVIDUAL) -> NoteContext:
     text = note_text(doc)
+    note_type, note_type_source = detect_note_type(doc, encounter, default_note_type)
     clinician = person_name(practitioner)
     start, end = _dt((appointment or {}).get("start")), _dt((appointment or {}).get("end"))
     mod = modality(encounter)
@@ -120,7 +179,8 @@ def to_note_context(*, doc: dict, patient: dict | None, encounter: dict | None, 
     return NoteContext(
         note_id=f"openemr:docref:{doc['id']}",
         source="openemr",
-        note_type=NoteType.PROGRESS_INDIVIDUAL,
+        note_type=note_type,
+        note_type_source=note_type_source,
         text=text,
         sections=split_soap(text),
         client_id=chart_number(patient) or (f"patient-{patient_id[:8]}" if patient_id else None),

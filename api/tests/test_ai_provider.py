@@ -41,7 +41,7 @@ def test_claude_reviewer_request_shape():
 
     rules = load_ruleset(Path(__file__).resolve().parents[2] / "rulesets")
     note = NoteContext(note_id="n", note_type=NoteType.PROGRESS_INDIVIDUAL, text="S: a\nO: b\nA: Doing ok.\nP: c")
-    out = AIReviewOutput.model_validate({"findings": [], "measure_scores": []})
+    out = AIReviewOutput.model_validate({"findings": [], "measure_scores": [], "elements": []})
     calls = {}
 
     def parse(name, stop="end_turn"):

@@ -97,6 +97,7 @@ def to_note_context(*, patient: dict, encounter: dict, soap: dict, practitioners
         note_id=f"openemr:soap:{_s(soap.get('id'))}",
         source="openemr",
         note_type=NoteType.PROGRESS_INDIVIDUAL,
+        note_type_source="SOAP form (individual progress note)",
         text=text,
         sections=sections,
         client_id=_s(patient.get("pubpid")) or f"pid-{_s(patient.get('pid'))}",

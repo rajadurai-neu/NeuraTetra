@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { AssessmentOut, Finding } from "../api/types";
+import type { AssessmentOut, Finding, NoteInfo } from "../api/types";
+import { NOTE_TYPES } from "../api/types";
 import { SeverityTag, StatusBadge } from "../components/Badges";
-import { measureLabel, STATUS_LABEL } from "../lib/format";
+import { measureLabel, noteTypeLabel, STATUS_LABEL } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 
 export function NoteResult() {
   const { id = "" } = useParams();
   const res = useAsync(() => api.assessment(id), [id]);
   const hist = useAsync(() => api.history(id), [id]);
+  const info = useAsync(() => api.note(id), [id]);
+  const [typeOpen, setTypeOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [naFor, setNaFor] = useState<Finding | null>(null);
@@ -17,6 +20,7 @@ export function NoteResult() {
   const apply = (out: AssessmentOut, text: string) => {
     res.setData(out);
     hist.reload();
+    info.reload();
     const ch = out.changes;
     setMsg(ch && (ch.resolved.length || ch.new.length)
       ? `${text} ${ch.resolved.length} resolved, ${ch.new.length} new.`
@@ -51,6 +55,11 @@ export function NoteResult() {
       </div>
 
       <p aria-live="polite" className="small">{msg}</p>
+
+      {info.data && (
+        <NoteTypeBar info={info.data} busy={busy} onChange={() => setTypeOpen(true)}
+          onUndo={() => run(() => api.clearNoteType(id), "Note type correction removed.")} />
+      )}
 
       <section className="card" aria-labelledby="sum-h">
         <h2 id="sum-h" className="sr-only">Summary</h2>
@@ -162,6 +171,14 @@ export function NoteResult() {
         </div>
       </section>
 
+      {info.data && (
+        <TypeDialog open={typeOpen} current={info.data.note_type} onClose={() => setTypeOpen(false)}
+          onSave={(t, reason) => {
+            setTypeOpen(false);
+            run(() => api.setNoteType(id, t, reason), `Note type changed to ${noteTypeLabel(t).toLowerCase()} and re-assessed.`);
+          }} />
+      )}
+
       <NADialog
         finding={naFor}
         onClose={() => setNaFor(null)}
@@ -198,6 +215,67 @@ function NADialog({ finding, onClose, onSave }: {
         <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
           <button type="button" onClick={onClose}>Cancel</button>
           <button type="submit" className="primary" disabled={reason.trim().length < 3}>Save</button>
+        </div>
+      </form>
+    </dialog>
+  );
+}
+
+function NoteTypeBar({ info, busy, onChange, onUndo }: {
+  info: NoteInfo; busy: boolean; onChange: () => void; onUndo: () => void;
+}) {
+  const c = info.correction;
+  return (
+    <section className="card note-type" aria-label="Note type">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <div>
+          <div className="muted small">Note type</div>
+          <strong>{noteTypeLabel(info.note_type)}</strong>
+          <div className="small muted">
+            {c ? <>Corrected by {c.by}, {c.at_display}. Reason: {c.reason}
+              {c.detected_type && <> · The EHR said: {noteTypeLabel(c.detected_type)}</>}</>
+              : <>Identified from: {info.note_type_source ?? "entered with the note"}</>}
+          </div>
+        </div>
+        <div className="row">
+          {c && <button type="button" className="link small" disabled={busy} onClick={onUndo}>Undo correction</button>}
+          <button type="button" disabled={busy} onClick={onChange}>Change note type</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TypeDialog({ open, current, onClose, onSave }: {
+  open: boolean; current: string; onClose: () => void; onSave: (noteType: string, reason: string) => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [noteType, setNoteType] = useState(current);
+  const [reason, setReason] = useState("");
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) { setNoteType(current); setReason(""); d.showModal(); }
+    if (!open && d.open) d.close();
+  }, [open, current]);
+  const valid = noteType !== current && reason.trim().length >= 3;
+
+  return (
+    <dialog ref={ref} onClose={onClose} aria-labelledby="nt-h">
+      <form method="dialog" onSubmit={(e) => { e.preventDefault(); if (valid) onSave(noteType, reason.trim()); }}>
+        <h2 id="nt-h">Change note type</h2>
+        <p className="small muted">The note is re-assessed against the rules and required elements for the new type.
+          The change is kept when the note syncs from the EHR again, and is recorded in the audit log.</p>
+        <label htmlFor="nt-type">Note type</label>
+        <select id="nt-type" value={noteType} onChange={(e) => setNoteType(e.target.value)}>
+          {NOTE_TYPES.map((t) => <option key={t} value={t}>{noteTypeLabel(t)}{t === current ? " (current)" : ""}</option>)}
+        </select>
+        <label htmlFor="nt-reason" style={{ marginTop: 12 }}>Reason (visible to supervisors and QA)</label>
+        <textarea id="nt-reason" style={{ minHeight: 70, fontFamily: "inherit" }} value={reason}
+          onChange={(e) => setReason(e.target.value)} required minLength={3} />
+        <div className="row" style={{ justifyContent: "flex-end", marginTop: 12 }}>
+          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="submit" className="primary" disabled={!valid}>Change and re-assess</button>
         </div>
       </form>
     </dialog>

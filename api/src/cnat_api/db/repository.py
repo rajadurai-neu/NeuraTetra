@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from cnat_api.db.tables import (
     AIReviewCacheRow, AssessmentRow, AuditRow, FindingRow, MeasureRow, NotApplicableRow, NoteRow,
+    NoteTypeOverrideRow,
 )
 from cnat_engine.domain import Assessment, Finding, MeasureScore, NoteContext, Severity, Status
 from cnat_engine.ai.reviewer import ReviewResult
@@ -71,6 +72,29 @@ def clear_not_applicable(s: Session, note_id: str, rule_id: str) -> None:
         NotApplicableRow.note_id == note_id, NotApplicableRow.rule_id == rule_id))
     if row:
         s.delete(row)
+
+
+# ---------------- Note type corrections ----------------
+
+def note_type_override(s: Session, note_id: str) -> NoteTypeOverrideRow | None:
+    return s.get(NoteTypeOverrideRow, note_id)
+
+
+def set_note_type_override(s: Session, note_id: str, note_type: str, reason: str, user: str, now: datetime,
+                           detected_type: str | None, detected_source: str | None) -> None:
+    row = s.get(NoteTypeOverrideRow, note_id)
+    if row:   # keep what the EHR originally said
+        row.note_type, row.reason, row.set_by, row.set_at = note_type, reason, user, now
+    else:
+        s.add(NoteTypeOverrideRow(note_id=note_id, note_type=note_type, reason=reason, set_by=user, set_at=now,
+                                  detected_type=detected_type, detected_source=detected_source))
+
+
+def clear_note_type_override(s: Session, note_id: str) -> NoteTypeOverrideRow | None:
+    row = s.get(NoteTypeOverrideRow, note_id)
+    if row:
+        s.delete(row)
+    return row
 
 
 # ---------------- Assessments ----------------

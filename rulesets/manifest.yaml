@@ -1,8 +1,9 @@
 # Rule set bundle. Bump `version` on any change; every assessment stores it.
 # STARTER CONTENT: compliance staff must review wording, severities and thresholds before use.
-version: "2026.11.0"
+version: "2026.11.1"
 files: [part599.yaml, omh.yaml, soap.yaml, agency.yaml]
 quality_measures: quality.yaml
+note_types: note_types.yaml        # required elements per note type
 scoring:
   compliance_weight: 0.6
   quality_weight: 0.4

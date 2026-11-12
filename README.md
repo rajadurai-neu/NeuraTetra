@@ -93,8 +93,8 @@ server it gives no note author. Notes from OpenEMR declare these as unavailable,
 rules that need them are skipped instead of reported as false "missing" issues.
 
 ## Rules
-Rule wording, severities, CPT time ranges and the documentation deadline are **starter values** and must be
-reviewed by compliance staff. Bump `version` in `rulesets/manifest.yaml` on every change; each assessment stores it.
+Rule wording, severities, CPT time ranges, the documentation deadline and the **required elements per note type**
+(`rulesets/note_types.yaml`) are **starter values** and must be reviewed by compliance staff. Bump `version` in `rulesets/manifest.yaml` on every change; each assessment stores it.
 
 ## Security notes
 - No user passwords are used for OpenEMR. The tool signs in with its own key (`api/keys/`, gitignored).

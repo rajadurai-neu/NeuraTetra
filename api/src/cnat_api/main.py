@@ -28,7 +28,7 @@ if emr.configured:
 
     reader = OpenEMRClient(emr)
     source = (StandardApiSource(reader, emr.default_program) if emr.api == "standard"
-              else FhirSource(reader, emr.default_program))
+              else FhirSource(reader, emr.default_program, emr.default_note_type))
     sync = OpenEMRSync(source, service, lookback_days=emr.lookback_days)
     log.info("OpenEMR intake: %s", "SOAP form (Standard API)" if emr.api == "standard" else "Clinical Notes (FHIR)")
     if emr.sync_minutes > 0:

@@ -129,6 +129,19 @@ class NotApplicableRow(Base):
     __table_args__ = (UniqueConstraint("note_id", "rule_id", name="uq_na_note_rule"),)
 
 
+class NoteTypeOverrideRow(Base):
+    """A user's correction of a note's type (spec A2.8). Applied on every assessment, so EHR syncs keep it."""
+    __tablename__ = "note_type_overrides"
+
+    note_id: Mapped[str] = mapped_column(ForeignKey("notes.id"), primary_key=True)
+    note_type: Mapped[str] = mapped_column(String(48))
+    reason: Mapped[str] = mapped_column(Text)
+    set_by: Mapped[str] = mapped_column(String(128))
+    set_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    detected_type: Mapped[str | None] = mapped_column(String(48))        # what the EHR/default said
+    detected_source: Mapped[str | None] = mapped_column(String(256))
+
+
 class AIReviewCacheRow(Base):
     """Stored AI review per input hash, so the same note + versions give the same result."""
     __tablename__ = "ai_review_cache"

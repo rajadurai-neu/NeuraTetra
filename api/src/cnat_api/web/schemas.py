@@ -46,6 +46,33 @@ class AssessmentOut(BaseModel):
                    fix_first=fix, changes=ChangesOut(**vars(changes)) if changes else None, assessment=a)
 
 
+class NoteTypeIn(BaseModel):
+    note_type: NoteType
+    reason: str = Field(min_length=3, max_length=1000)
+
+
+class NoteTypeCorrection(BaseModel):
+    by: str
+    reason: str
+    at: datetime
+    at_display: str = ""
+    detected_type: str | None
+    detected_source: str | None
+
+
+class NoteInfo(BaseModel):
+    note_id: str
+    source: str
+    note_type: str
+    note_type_source: str | None
+    corrected: bool
+    correction: NoteTypeCorrection | None
+    client_id: str | None
+    date_of_service: date | None
+    clinician: str | None
+    is_signed: bool
+
+
 class NotApplicableIn(BaseModel):
     reason: str = Field(min_length=3, max_length=1000)
 

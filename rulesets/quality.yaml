@@ -1,5 +1,6 @@
 # Clinical quality measures scored 0-3 by the AI reviewer.
-version: "q1"
+version: "q2"
+# applies_to.note_types limits a measure to the note types it fits (omitted = all types).
 measures:
   - id: patient_centeredness
     name: Patient-centeredness
@@ -9,18 +10,22 @@ measures:
     name: Link to treatment plan goals
     description: Session work is tied to specific treatment plan goals/objectives.
     anchors: {0: "No link", 1: "Vague reference", 2: "Names a goal", 3: "Names goal/objective and progress on it"}
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, medication_management, treatment_plan_review]}
   - id: intervention_response
     name: Interventions and client response
     description: Specific interventions are named and the client's response is described.
     anchors: {0: "Neither", 1: "Intervention only, vague", 2: "Intervention and response, one vague", 3: "Both specific"}
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, medication_management, crisis_safety]}
   - id: measurable_progress
     name: Measurable progress
     description: Progress is described in observable or measurable terms, not "doing fine".
     anchors: {0: "None", 1: "Vague", 2: "Partly measurable", 3: "Clearly measurable"}
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, medication_management, treatment_plan_review, discharge_summary]}
   - id: medical_necessity
     name: Medical necessity
     description: Symptoms/functional impairment justify the service.
     anchors: {0: "Absent", 1: "Implied", 2: "Stated", 3: "Stated and linked to diagnosis/impairment"}
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, psychiatric_evaluation, psychosocial_assessment, treatment_plan, treatment_plan_review, crisis_safety, medication_management, discharge_summary]}
   - id: risk_assessment
     name: Risk assessment where needed
     description: Risk is assessed when indicated and the response is documented.
@@ -29,6 +34,7 @@ measures:
     name: SOAP section content
     description: Each section holds the right kind of content (no interpretation in Subjective, etc.).
     anchors: {0: "Mostly misplaced", 1: "Several misplaced", 2: "Minor issues", 3: "Correct"}
+    applies_to: {note_types: [progress_individual, progress_group, progress_family, medication_management]}
   - id: clear_plan
     name: Clear plan
     description: Next steps, follow-up and next session are stated.

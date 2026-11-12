@@ -51,6 +51,7 @@ class OpenEMRSettings(BaseSettings):
     sync_minutes: float = 0          # 0 = off; e.g. 5 = poll every 5 minutes
     lookback_days: int = 14          # only encounters this recent
     default_program: str | None = None
+    default_note_type: str = "progress_individual"   # used when the EHR doesn't identify the note type
 
     @property
     def configured(self) -> bool:

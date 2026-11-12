@@ -38,6 +38,7 @@ def payload(measure_id):
         ],
         "measure_scores": [{"measure": measure_id, "score": 1, "finding": "Minimal."},
                            {"measure": "UNKNOWN", "score": 3, "finding": "ignored"}],
+        "elements": [],
     })
 
 

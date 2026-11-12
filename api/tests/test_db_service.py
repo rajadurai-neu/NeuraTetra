@@ -22,13 +22,13 @@ class FakeReviewer:
     def __init__(self):
         self.calls = 0
 
-    def review(self, note, measures):
+    def review(self, note, measures, elements=()):
         self.calls += 1
         out = AIReviewOutput(
             findings=[AIFinding(rule_id="AI-clear_plan", element="Plan", severity="warning",
                                 issue="No next session.", evidence_quote="ABSENT",
                                 suggestion="State the next session date.")],
-            measure_scores=[AIMeasure(measure="clear_plan", score=1, finding="Vague")])
+            measure_scores=[AIMeasure(measure="clear_plan", score=1, finding="Vague")], elements=[])
         return to_review_result(out, note, measures, self.model)
 
 

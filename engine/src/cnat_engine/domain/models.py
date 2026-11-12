@@ -52,6 +52,7 @@ class NoteContext(BaseModel):
     note_id: str
     source: str = "manual"                 # "openemr" | "manual"
     note_type: NoteType
+    note_type_source: str | None = None    # how the type was set, e.g. "EHR visit reason", "corrected by Jane"
     text: str
     sections: dict[str, str] = Field(default_factory=dict)  # S/O/A/P if the EHR stores them separately
 

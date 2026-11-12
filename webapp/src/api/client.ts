@@ -1,5 +1,5 @@
 import type {
-  AssessmentOut, AuthMode, BatchResult, HistoryItem, Me, QueueItem, RulesetOut, Summary, SyncRun, SyncStatus,
+  AssessmentOut, AuthMode, BatchResult, HistoryItem, Me, NoteInfo, QueueItem, RulesetOut, Summary, SyncRun, SyncStatus,
 } from "./types";
 
 // Local dev only: the API trusts X-Dev-User / X-Dev-Role when CNAT_DEV_AUTH=1.
@@ -73,6 +73,12 @@ export const api = {
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   queue: (f: Record<string, string | undefined>) => request<QueueItem[]>(`/queue${qs(f)}`),
   assessment: (id: string) => request<AssessmentOut>(`/notes/${encodeURIComponent(id)}/assessment`),
+  note: (id: string) => request<NoteInfo>(`/notes/${encodeURIComponent(id)}`),
+  setNoteType: (id: string, noteType: string, reason: string) =>
+    request<AssessmentOut>(`/notes/${encodeURIComponent(id)}/note-type`,
+      { method: "PUT", body: JSON.stringify({ note_type: noteType, reason }) }),
+  clearNoteType: (id: string) =>
+    request<AssessmentOut>(`/notes/${encodeURIComponent(id)}/note-type`, { method: "DELETE" }),
   history: (id: string) => request<HistoryItem[]>(`/notes/${encodeURIComponent(id)}/history`),
   reassess: (id: string) => request<AssessmentOut>(`/notes/${encodeURIComponent(id)}/reassess`, { method: "POST" }),
   assess: (note: Record<string, unknown>) =>

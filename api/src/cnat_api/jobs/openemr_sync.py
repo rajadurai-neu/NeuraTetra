@@ -19,7 +19,7 @@ from cnat_api.connectors.openemr.fhir_mapper import to_note_context as fhir_to_n
 from cnat_api.connectors.openemr.mapper import encounter_id, practitioner_index
 from cnat_api.connectors.openemr.mapper import to_note_context as soap_to_note
 from cnat_api.services.assessments import AssessmentService
-from cnat_engine.domain import NoteContext
+from cnat_engine.domain import NoteContext, NoteType
 
 log = logging.getLogger("cnat.openemr_sync")
 ACTOR = "system:openemr-sync"
@@ -76,8 +76,10 @@ class FhirSource:
     label = "Clinical Notes (FHIR)"
     PREFIX = "openemr:docref:"
 
-    def __init__(self, reader: FhirReader, default_program: str | None = None):
+    def __init__(self, reader: FhirReader, default_program: str | None = None,
+                 default_note_type: NoteType = NoteType.PROGRESS_INDIVIDUAL):
         self.reader, self.default_program = reader, default_program
+        self.default_note_type = NoteType(default_note_type)
 
     # ---- shared helpers (one cache per fetch) ----
     def _reader(self):
@@ -119,7 +121,7 @@ class FhirSource:
         return fhir_to_note(
             doc=doc, patient=read("Patient", patient_id), encounter=encounter,
             practitioner=read("Practitioner", author_id), clinic=(org or {}).get("name"),
-            default_program=self.default_program, appointment=appt)
+            default_program=self.default_program, appointment=appt, default_note_type=self.default_note_type)
 
     # ---- NoteSource ----
     def fetch(self, since: date) -> tuple[list[NoteContext], list[str]]:

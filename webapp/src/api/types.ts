@@ -108,10 +108,29 @@ export interface Rule {
   id: string; element: string; check: string; severity: Severity; issue: string; suggestion: string;
   source: string; status: string; applies_to: { note_types: string[] | null; programs: string[] | null };
 }
+export interface RequiredElement { id: string; name: string; description: string; severity: Severity }
+
 export interface RulesetOut {
   version: string;
   rules: Rule[];
-  quality_measures: { id: string; name: string; description: string }[];
+  quality_measures: { id: string; name: string; description: string; applies_to: { note_types: string[] | null } }[];
+  required_elements: Record<string, RequiredElement[]>;
+}
+
+export interface NoteInfo {
+  note_id: string;
+  source: string;
+  note_type: NoteType;
+  note_type_source: string | null;
+  corrected: boolean;
+  correction: {
+    by: string; reason: string; at: string; at_display: string;
+    detected_type: string | null; detected_source: string | null;
+  } | null;
+  client_id: string | null;
+  date_of_service: string | null;
+  clinician: string | null;
+  is_signed: boolean;
 }
 
 export interface SyncRun {

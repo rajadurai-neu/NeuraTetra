@@ -44,6 +44,9 @@ def ai_input_hash(note: NoteContext, ruleset: RuleSet, reviewer: Reviewer) -> st
         "modality": note.modality.value if note.modality else None,
         "treatment_plan": note.treatment_plan.model_dump(mode="json") if note.treatment_plan else None,
         "quality_version": ruleset.quality_version,
+        "measures": [m.id for m in ruleset.measures_for(note.note_type)],
+        "elements_version": ruleset.elements_version,
+        "elements": [e.id for e in ruleset.elements_for(note.note_type)],
         "prompt_version": reviewer.prompt_version,
         "model": reviewer.model,
     }
@@ -63,7 +66,7 @@ def assess(note: NoteContext, ruleset: RuleSet, reviewer: Reviewer, *,
     key = ai_input_hash(note, ruleset, reviewer)
     review = cache.get(key) if cache else None
     if review is None:
-        review = reviewer.review(note, ruleset.measures)
+        review = reviewer.review(note, ruleset.measures_for(note.note_type), ruleset.elements_for(note.note_type))
         if cache:
             cache.put(key, review)
 
@@ -76,7 +79,10 @@ def assess(note: NoteContext, ruleset: RuleSet, reviewer: Reviewer, *,
     # 3. Score
     findings = sorted(rules.findings + ai_findings,
                       key=lambda f: (f.not_applicable_reason is not None, SEVERITY_ORDER[f.severity], f.rule_id))
-    compliance = scoring.compliance_score(rules.checked, rules.passed)
+    # Required elements for the note type count as compliance checks alongside the rules.
+    checked = rules.checked + len(review.element_results)
+    passed = rules.passed + sum(1 for e in review.element_results if e.present)
+    compliance = scoring.compliance_score(checked, passed)
     quality = scoring.quality_score(review.measure_scores)
     return Assessment(
         note_id=note.note_id,
@@ -86,8 +92,8 @@ def assess(note: NoteContext, ruleset: RuleSet, reviewer: Reviewer, *,
         overall_score=scoring.overall_score(compliance, quality, ruleset.compliance_weight, ruleset.quality_weight),
         findings=findings,
         measure_scores=review.measure_scores,
-        rules_checked=rules.checked,
-        rules_passed=rules.passed,
+        rules_checked=checked,
+        rules_passed=passed,
         ruleset_version=ruleset.full_version,
         prompt_version=review.prompt_version,
         model=review.model,

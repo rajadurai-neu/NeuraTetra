@@ -123,7 +123,7 @@ def test_roles_endpoint_guard(client):
 
 def test_ruleset_visible(client):
     body = client.get("/api/rulesets/current", headers=CLIN).json()
-    assert body["version"].startswith("2026.11.0") and len(body["quality_measures"]) == 8
+    assert body["version"].startswith("2026.11.1") and len(body["quality_measures"]) == 8
 
 
 def test_report_summary_scoped(client):

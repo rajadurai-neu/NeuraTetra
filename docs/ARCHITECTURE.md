@@ -166,6 +166,9 @@ sequenceDiagram
   OpenEMR sync page) assesses signed notes only, recorded with trigger `retro`.
 - **Re-assess** on a note page fetches the latest copy of that note from OpenEMR first. If OpenEMR can't be
   reached, it re-runs on the stored copy.
+- **Note type** is detected from the note's type name in OpenEMR, then the visit reason (e.g. "Group therapy"),
+  then its LOINC code, then `OPENEMR_DEFAULT_NOTE_TYPE`. Users can correct it on the note page; the correction
+  is audited and kept by later syncs (`note_type_overrides` table).
 - **Session times** come from a same-day FHIR `Appointment`, preferring the note author's. **Modality** comes
   from the visit's class: Ambulatory or Home health = in person, Virtual = video. Audio-only can't be told
   apart from video.
@@ -186,7 +189,7 @@ flowchart TD
     start --> hash["Step 2: AI input hash<br/>text + sections + context +<br/>rule/prompt/model versions"]
     hash --> cached{"Result for this<br/>hash already stored?"}
     cached -- yes --> reuse["Reuse stored AI review<br/>(same note = same result)"]
-    cached -- no --> aicall["Call AI reviewer<br/>fixed output structure"]
+    cached -- no --> aicall["Call AI reviewer<br/>measures + required elements<br/>for this note type"]
     aicall --> refusal{"Refused?"}
     refusal -- "yes (Anthropic API)" --> fallback["Server-side fallback<br/>to another Claude model"]
     refusal -- no --> ground
@@ -205,6 +208,8 @@ flowchart TD
 | Step | Where | What it guarantees |
 |---|---|---|
 | Rules | `engine/rules/checks.py`, `rulesets/*.yaml` | Same input → same result. The risk-language safety check never depends on AI |
+| Note type | `NoteContext.note_type` | Picks the rules, quality measures and required elements (`rulesets/note_types.yaml`) for the 11 note types |
+| Required elements | `rulesets/note_types.yaml`, checked by the AI | Each present element must be quoted exactly; missing ones become `EL-<id>` findings and count toward compliance |
 | Unavailable fields | `NoteContext.unavailable_fields` | Rules needing data the EHR can't supply return N/A, not false "missing" issues |
 | AI review | `engine/ai/reviewer.py`, `api/providers/` | Claude (Anthropic API or Foundry) or GPT (Azure OpenAI); an unconfigured provider means rules only |
 | Grounding | `to_review_result` | Every AI finding quotes the note exactly, or says `ABSENT` |
@@ -249,6 +254,7 @@ erDiagram
     ASSESSMENTS ||--o{ FINDINGS : has
     ASSESSMENTS ||--o{ MEASURE_SCORES : has
     NOTES ||--o{ NOT_APPLICABLE : "rule marked N/A"
+    NOTES ||--o| NOTE_TYPE_OVERRIDES : "type corrected"
     NOTES {
         string id PK "openemr:docref:... or manual:..."
         string source
@@ -293,6 +299,13 @@ erDiagram
         string rule_id
         text reason
         string marked_by
+    }
+    NOTE_TYPE_OVERRIDES {
+        string note_id PK
+        string note_type
+        text reason
+        string set_by
+        string detected_type "what the EHR said"
     }
     AI_REVIEW_CACHE {
         string input_hash PK

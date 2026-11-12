@@ -14,7 +14,7 @@ from cnat_engine.ai.reviewer import (
     to_review_result,
 )
 from cnat_engine.domain import NoteContext
-from cnat_engine.rules.ruleset import QualityMeasure
+from cnat_engine.rules.ruleset import QualityMeasure, RequiredElement
 
 
 def output_schema() -> dict:
@@ -33,12 +33,13 @@ class AzureOpenAIReviewer:
         self.system_prompt = PROMPT_FILE.read_text()
         self.max_output_tokens = max_output_tokens
 
-    def review(self, note: NoteContext, measures: list[QualityMeasure]) -> ReviewResult:
+    def review(self, note: NoteContext, measures: list[QualityMeasure],
+               elements: list[RequiredElement] = ()) -> ReviewResult:
         response = self.client.chat.completions.create(
             model=self.deployment,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": build_user_message(note, measures)},
+                {"role": "user", "content": build_user_message(note, measures, elements)},
             ],
             response_format={"type": "json_schema", "json_schema": output_schema()},
             max_completion_tokens=self.max_output_tokens,
@@ -55,4 +56,4 @@ class AzureOpenAIReviewer:
             out = AIReviewOutput.model_validate(json.loads(choice.message.content or ""))
         except (json.JSONDecodeError, ValidationError) as e:
             raise RuntimeError(f"AI review returned an unexpected format: {str(e)[:200]}") from e
-        return to_review_result(out, note, measures, self.model)
+        return to_review_result(out, note, measures, self.model, elements)

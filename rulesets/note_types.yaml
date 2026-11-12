@@ -1,0 +1,148 @@
+# Required elements per note type (spec A2.7). Checked by the AI reviewer: each element is reported
+# as present (with an exact quote from the note) or missing. Missing elements become findings with
+# rule id "EL-<id>" and count toward the compliance score.
+#
+# STARTER CONTENT: compliance staff must review element lists, wording and severities before use.
+# Bump `version` on any change; every assessment stores it.
+#
+# Progress notes keep their lists short on purpose: SOAP sections, interventions/response, progress,
+# plan and risk are already covered by the SOAP rules and the quality measures.
+version: "nt1"
+types:
+  progress_individual:
+    - {id: session_focus, name: "Session focus", severity: warning,
+       description: "The concerns or topics addressed in this session."}
+    - {id: clinical_observations, name: "Clinical observations", severity: warning,
+       description: "The clinician's observations of the client (e.g., mental status, affect, behavior)."}
+
+  progress_group:
+    - {id: group_topic, name: "Group topic", severity: warning,
+       description: "The group's topic, theme or curriculum for this session."}
+    - {id: client_participation, name: "Client's own participation", severity: critical,
+       description: "This client's individual participation and response in the group, not only the group's."}
+    - {id: clinical_observations, name: "Clinical observations", severity: warning,
+       description: "The clinician's observations of this client during the group."}
+
+  progress_family:
+    - {id: family_members_present, name: "Who attended", severity: warning,
+       description: "Which family members or others attended, and their relationship to the client."}
+    - {id: family_interaction, name: "Family interaction", severity: warning,
+       description: "Observations of interactions or dynamics among those present."}
+    - {id: session_focus, name: "Session focus", severity: warning,
+       description: "The concerns or topics addressed in this session."}
+
+  psychiatric_evaluation:
+    - {id: reason_for_referral, name: "Reason for referral / chief complaint", severity: critical,
+       description: "Why the client is being evaluated, in the client's or referrer's terms."}
+    - {id: history_present_illness, name: "History of present illness", severity: warning,
+       description: "Onset, course and current symptoms of the presenting problem."}
+    - {id: psychiatric_history, name: "Past psychiatric history", severity: warning,
+       description: "Prior diagnoses, treatment, hospitalizations and medication trials."}
+    - {id: substance_use, name: "Substance use history", severity: warning,
+       description: "Current and past alcohol, drug and tobacco use."}
+    - {id: medical_history, name: "Medical history and current medications", severity: warning,
+       description: "Relevant medical conditions and current medications."}
+    - {id: mental_status_exam, name: "Mental status examination", severity: critical,
+       description: "Appearance, behavior, speech, mood, affect, thought process/content, cognition, insight, judgment."}
+    - {id: risk_assessment, name: "Risk assessment", severity: critical,
+       description: "Assessment of suicide, self-harm and violence risk."}
+    - {id: diagnosis, name: "Diagnosis / clinical formulation", severity: critical,
+       description: "Diagnostic impression and the reasoning behind it."}
+    - {id: recommendations, name: "Recommendations / treatment plan", severity: critical,
+       description: "Recommended treatment, medications and follow-up."}
+
+  psychosocial_assessment:
+    - {id: presenting_problem, name: "Presenting problem", severity: critical,
+       description: "The reason for seeking services, in the client's words where possible."}
+    - {id: family_social_history, name: "Family and social history", severity: warning,
+       description: "Family background, relationships and social supports."}
+    - {id: education_employment, name: "Education, employment and finances", severity: warning,
+       description: "Schooling, work and financial situation."}
+    - {id: living_situation, name: "Living situation", severity: warning,
+       description: "Housing and household."}
+    - {id: substance_use, name: "Substance use", severity: warning,
+       description: "Current and past substance use."}
+    - {id: trauma_history, name: "Trauma history", severity: warning,
+       description: "Exposure to trauma or abuse, or that it was asked about."}
+    - {id: strengths_needs, name: "Strengths and needs", severity: warning,
+       description: "The client's strengths, preferences and needs."}
+    - {id: risk_assessment, name: "Risk assessment", severity: critical,
+       description: "Assessment of suicide, self-harm and violence risk."}
+    - {id: clinical_summary, name: "Clinical summary / recommendations", severity: critical,
+       description: "Summary of findings and recommended services."}
+
+  treatment_plan:
+    - {id: diagnosis, name: "Diagnosis", severity: critical,
+       description: "The diagnosis or diagnoses the plan addresses."}
+    - {id: problems_needs, name: "Problems / needs", severity: critical,
+       description: "The problems or needs identified for treatment."}
+    - {id: measurable_goals, name: "Measurable goals", severity: critical,
+       description: "Goals stated in measurable terms, ideally in the client's own words."}
+    - {id: objectives, name: "Objectives", severity: warning,
+       description: "Specific objectives under each goal."}
+    - {id: interventions_frequency, name: "Interventions and frequency", severity: critical,
+       description: "The services or interventions planned, by whom and how often."}
+    - {id: target_dates, name: "Target dates", severity: warning,
+       description: "Target dates for goals or objectives."}
+    - {id: client_participation, name: "Client participation", severity: critical,
+       description: "That the client (and family, if applicable) took part in developing the plan."}
+
+  treatment_plan_review:
+    - {id: progress_per_goal, name: "Progress on each goal", severity: critical,
+       description: "Progress toward each treatment plan goal since the last plan or review."}
+    - {id: plan_changes, name: "Changes to the plan", severity: warning,
+       description: "Goals, objectives or services added, changed or ended, or that none are needed."}
+    - {id: continued_necessity, name: "Continued need for services", severity: critical,
+       description: "Why services continue to be needed (medical necessity)."}
+    - {id: client_participation, name: "Client participation", severity: critical,
+       description: "That the client took part in the review."}
+
+  crisis_safety:
+    - {id: crisis_description, name: "Crisis description", severity: critical,
+       description: "What happened and how the crisis came to the clinician's attention."}
+    - {id: risk_assessment, name: "Risk assessment", severity: critical,
+       description: "Assessment of suicide, self-harm and violence risk, including level of risk."}
+    - {id: interventions, name: "Interventions provided", severity: critical,
+       description: "What the clinician did to address the crisis."}
+    - {id: safety_plan, name: "Safety plan", severity: critical,
+       description: "The safety plan agreed with the client, or why one wasn't possible."}
+    - {id: disposition, name: "Disposition", severity: critical,
+       description: "The outcome: e.g., client safe at home, referred to emergency services, hospitalized."}
+    - {id: follow_up, name: "Follow-up and notifications", severity: warning,
+       description: "Planned follow-up and who was notified (e.g., supervisor, family, emergency contact)."}
+
+  medication_management:
+    - {id: current_medications, name: "Current medications", severity: critical,
+       description: "The medications the client is taking, with dose."}
+    - {id: target_symptoms_response, name: "Target symptoms and response", severity: warning,
+       description: "The symptoms being treated and how the client is responding."}
+    - {id: adherence, name: "Adherence", severity: warning,
+       description: "Whether the client is taking medications as prescribed."}
+    - {id: side_effects, name: "Side effects", severity: warning,
+       description: "Side effects reported or asked about."}
+    - {id: medication_changes, name: "Medication changes and rationale", severity: warning,
+       description: "Any changes made and why, or that no changes were made."}
+
+  collateral_contact:
+    - {id: contact_person, name: "Who was contacted", severity: critical,
+       description: "The person contacted and their relationship to the client or role."}
+    - {id: consent, name: "Consent / release of information", severity: critical,
+       description: "That a valid consent or release covers this contact, or why none was needed."}
+    - {id: purpose, name: "Purpose of contact", severity: warning,
+       description: "Why the contact was made."}
+    - {id: information_exchanged, name: "Information exchanged", severity: warning,
+       description: "What was shared and learned."}
+    - {id: relevance_to_treatment, name: "Relevance to treatment", severity: warning,
+       description: "How the contact relates to the client's treatment plan."}
+
+  discharge_summary:
+    - {id: reason_for_discharge, name: "Reason for discharge", severity: critical,
+       description: "Why services are ending (e.g., goals met, client choice, transfer)."}
+    - {id: treatment_summary, name: "Summary of treatment", severity: critical,
+       description: "Services provided over the course of treatment."}
+    - {id: progress_on_goals, name: "Progress on goals", severity: warning,
+       description: "Progress toward treatment plan goals by the time of discharge."}
+    - {id: status_at_discharge, name: "Status at discharge", severity: warning,
+       description: "The client's clinical status and risk at discharge."}
+    - {id: referrals_aftercare, name: "Referrals and aftercare", severity: critical,
+       description: "Referrals made and the aftercare plan, or that none were needed."}

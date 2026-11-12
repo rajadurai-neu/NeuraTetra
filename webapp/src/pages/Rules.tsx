@@ -41,9 +41,37 @@ export function Rules() {
           </div>
         </section>
       ))}
+      <section className="card" aria-labelledby="r-el">
+        <h2 id="r-el">Required elements by note type</h2>
+        <p className="small muted">Checked by the AI review: each element must be documented in the note.
+          Missing elements are reported with rule id EL-&lt;element&gt; and count toward compliance.</p>
+        {Object.entries(data.required_elements).map(([type, els]) => (
+          <details key={type} className="el-type">
+            <summary><strong>{noteTypeLabel(type)}</strong> <span className="muted small">({els.length} elements)</span></summary>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Element</th><th>Severity if missing</th><th>What it means</th></tr></thead>
+                <tbody>
+                  {els.map((e) => (
+                    <tr key={e.id}>
+                      <td>{e.name}<div className="small muted">EL-{e.id}</div></td>
+                      <td><SeverityTag severity={e.severity} /></td>
+                      <td>{e.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ))}
+      </section>
       <section className="card" aria-labelledby="r-q">
         <h2 id="r-q">Clinical quality measures (AI review, scored 0–3)</h2>
-        <ul>{data.quality_measures.map((m) => <li key={m.id}><strong>{m.name}</strong>: {m.description}</li>)}</ul>
+        <ul>{data.quality_measures.map((m) => (
+          <li key={m.id}><strong>{m.name}</strong>: {m.description}
+            <div className="small muted">{m.applies_to.note_types?.map(noteTypeLabel).join(", ") ?? "All note types"}</div>
+          </li>
+        ))}</ul>
       </section>
     </div>
   );

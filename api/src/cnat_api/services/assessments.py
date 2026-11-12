@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from cnat_api.db import repository as repo
 from cnat_api.db.session import unit_of_work
-from cnat_engine.domain import Assessment, NoteContext, Severity
+from cnat_engine.domain import NoteType, Assessment, NoteContext, Severity
 from cnat_engine.ai.reviewer import Reviewer
 from cnat_engine.pipeline import assess
 from cnat_engine.rules.ruleset import RuleSet
@@ -50,6 +50,7 @@ class AssessmentService:
                     force: bool = False) -> Outcome:
         now = self.clock()
         with unit_of_work(self.sessions) as s:
+            note = self._with_type_correction(s, note)
             row, changed = repo.upsert_note(s, note, now)
             repo.audit(s, actor, "note_retrieved", "note", note.note_id, now, {"source": note.source})
             current = repo.current_assessment(s, note.note_id)
@@ -69,6 +70,71 @@ class AssessmentService:
             "resolved": ch.resolved, "new": ch.new,
         })
         return Outcome(a, saved.id, ch)
+
+    @staticmethod
+    def _with_type_correction(s: Session, note: NoteContext) -> NoteContext:
+        """A user's note-type correction wins over what the EHR says (spec A2.8)."""
+        ov = repo.note_type_override(s, note.note_id)
+        if ov is None:
+            return note
+        return note.model_copy(update={"note_type": NoteType(ov.note_type),
+                                       "note_type_source": f"corrected by {ov.set_by}"})
+
+    # ---- note type (spec A2.8) ----
+    def note_info(self, note_id: str) -> dict:
+        with unit_of_work(self.sessions) as s:
+            row = repo.get_note(s, note_id)
+            if row is None:
+                raise KeyError(note_id)
+            ov = repo.note_type_override(s, note_id)
+            ctx = row.context or {}
+            return {
+                "note_id": note_id, "source": row.source, "note_type": row.note_type,
+                "note_type_source": ctx.get("note_type_source"),
+                "corrected": ov is not None,
+                "correction": None if ov is None else {
+                    "by": ov.set_by, "reason": ov.reason, "at": ov.set_at,
+                    "detected_type": ov.detected_type, "detected_source": ov.detected_source},
+                "client_id": row.client_id, "date_of_service": row.date_of_service,
+                "clinician": row.clinician_name, "is_signed": row.is_signed,
+            }
+
+    def set_note_type(self, note_id: str, note_type: NoteType, reason: str, user: str) -> Outcome:
+        reason = (reason or "").strip()
+        if len(reason) < 3:
+            raise ValueError("Say briefly why the note type is being changed.")
+        now = self.clock()
+        with unit_of_work(self.sessions) as s:
+            stored = self._stored_note(s, note_id)
+            existing = repo.note_type_override(s, note_id)
+            if stored.note_type == note_type and existing is None:
+                raise ValueError(f"The note is already a {note_type.value.replace('_', ' ')}.")
+            repo.set_note_type_override(
+                s, note_id, note_type.value, reason, user, now,
+                detected_type=existing.detected_type if existing else stored.note_type.value,
+                detected_source=existing.detected_source if existing else stored.note_type_source)
+            repo.audit(s, user, "note_type_changed", "note", note_id, now,
+                       {"from": stored.note_type.value, "to": note_type.value, "reason": reason})
+            s.flush()
+            note = stored.model_copy(update={"note_type": note_type, "note_type_source": f"corrected by {user}"})
+            repo.upsert_note(s, note, now)
+            return self._run(s, note, user, "type_change", now, repo.current_assessment(s, note_id))
+
+    def clear_note_type(self, note_id: str, user: str) -> Outcome:
+        """Undo a correction: back to the type the EHR (or the default) gave."""
+        now = self.clock()
+        with unit_of_work(self.sessions) as s:
+            stored = self._stored_note(s, note_id)
+            ov = repo.clear_note_type_override(s, note_id)
+            if ov is None:
+                raise ValueError("The note type hasn't been corrected.")
+            restored = NoteType(ov.detected_type) if ov.detected_type else stored.note_type
+            repo.audit(s, user, "note_type_correction_removed", "note", note_id, now,
+                       {"from": stored.note_type.value, "to": restored.value})
+            s.flush()
+            note = stored.model_copy(update={"note_type": restored, "note_type_source": ov.detected_source})
+            repo.upsert_note(s, note, now)
+            return self._run(s, note, user, "type_change", now, repo.current_assessment(s, note_id))
 
     def _stored_note(self, s: Session, note_id: str) -> NoteContext:
         row = repo.get_note(s, note_id)

@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from cnat_api.web.schemas import (
-    AssessmentOut, BatchResult, HistoryItem, LoginIn, NoteIn, NotApplicableIn, QueueItem,
+    AssessmentOut, BatchResult, HistoryItem, LoginIn, NoteIn, NoteInfo, NoteTypeIn, NotApplicableIn, QueueItem,
 )
 from cnat_api.web.password_auth import COOKIE, PasswordAuth
 from cnat_api.web.security import AuthSettings, Role, User, can_see_note, current_user, require, scope_filters
@@ -183,6 +183,30 @@ def build_router() -> APIRouter:
             out = svc.reassess(note_id, actor=user.name)
         return AssessmentOut.build(out.assessment, out.assessment_id, False, out.changes)
 
+    # ---------- note details + note type (spec A2.8) ----------
+    @r.get("/notes/{note_id}", response_model=NoteInfo)
+    def note_info(note_id: str, request: Request, user: User = Depends(current_user)):
+        svc = _svc(request)
+        _check_note_access(svc, user, note_id)
+        info = svc.note_info(note_id)
+        if info["correction"]:
+            info["correction"]["at_display"] = fmt_et(info["correction"]["at"])
+        return info
+
+    @r.put("/notes/{note_id}/note-type", response_model=AssessmentOut)
+    def change_note_type(note_id: str, body: NoteTypeIn, request: Request, user: User = Depends(current_user)):
+        svc = _svc(request)
+        _check_note_access(svc, user, note_id)
+        out = svc.set_note_type(note_id, body.note_type, body.reason, user=user.name)
+        return AssessmentOut.build(out.assessment, out.assessment_id, False, out.changes)
+
+    @r.delete("/notes/{note_id}/note-type", response_model=AssessmentOut)
+    def undo_note_type(note_id: str, request: Request, user: User = Depends(current_user)):
+        svc = _svc(request)
+        _check_note_access(svc, user, note_id)
+        out = svc.clear_note_type(note_id, user=user.name)
+        return AssessmentOut.build(out.assessment, out.assessment_id, False, out.changes)
+
     # ---------- not applicable ----------
     @r.post("/notes/{note_id}/findings/{rule_id}/not-applicable", response_model=AssessmentOut)
     def mark_na(note_id: str, rule_id: str, body: NotApplicableIn, request: Request,
@@ -237,7 +261,9 @@ def build_router() -> APIRouter:
         return {
             "version": rs.full_version,
             "rules": [r.model_dump(mode="json") for r in rs.rules],
-            "quality_measures": [m.model_dump() for m in rs.measures],
+            "quality_measures": [m.model_dump(mode="json") for m in rs.measures],
+            "required_elements": {t.value: [e.model_dump(mode="json") for e in els]
+                                  for t, els in rs.required_elements.items()},
         }
 
     @r.get("/admin/ping", dependencies=[Depends(require(Role.ADMIN))])

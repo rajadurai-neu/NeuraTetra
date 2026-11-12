@@ -168,3 +168,9 @@ details summary { cursor: pointer; color: var(--accent); margin-top: 8px; }
 .sync-facts { display: flex; gap: 24px; flex-wrap: wrap; margin: 0; }
 .sync-facts dt { color: var(--text-2); font-size: 0.8rem; }
 .sync-facts dd { margin: 0; font-weight: 600; }
+
+/* Note type bar + rules by note type */
+.note-type strong { font-size: 1.05rem; }
+.el-type { border-top: 1px solid var(--border); padding: 8px 0; }
+.el-type summary { cursor: pointer; padding: 4px 0; }
+.el-type .table-wrap { margin-top: 8px; }

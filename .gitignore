@@ -11,3 +11,6 @@ node_modules/
 build/
 deploy/.azure-state
 *.secret.txt
+
+# Local Claude launch config (machine-specific paths)
+.claude/launch.json

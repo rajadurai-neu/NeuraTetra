@@ -26,12 +26,15 @@ if emr.configured:
     from cnat_api.connectors.openemr.client import OpenEMRClient
     from cnat_api.jobs.openemr_sync import OpenEMRSync, SyncScheduler
 
-    sync = OpenEMRSync(OpenEMRClient(emr), service, lookback_days=emr.lookback_days,
-                       default_program=emr.default_program)
-    if emr.sync_minutes > 0:
+    try:
+        sync = OpenEMRSync(OpenEMRClient(emr), service, lookback_days=emr.lookback_days,
+                           default_program=emr.default_program)
+    except Exception as exc:  # bad OpenEMR settings must not take the whole app down
+        log.error("OpenEMR intake: disabled, settings incomplete: %s", exc)
+    if sync and emr.sync_minutes > 0:
         scheduler = SyncScheduler(sync, emr.sync_minutes)
         log.info("OpenEMR intake: polling every %s min", emr.sync_minutes)
-    else:
+    elif sync:
         log.info("OpenEMR intake: on demand only (OPENEMR_SYNC_MINUTES=0)")
 else:
     log.info("OpenEMR intake: not configured")

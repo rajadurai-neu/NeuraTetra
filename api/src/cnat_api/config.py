@@ -40,6 +40,8 @@ class OpenEMRSettings(BaseSettings):
     client_id: str = ""
     client_secret: str = ""
     private_key_path: str = "keys/openemr_private.pem"
+    # Azure: the PEM text itself (App Service setting / Key Vault reference). Used instead of the file.
+    private_key: str = ""
     key_id: str = ""
     scopes: str = "api:oemr system/patient.read system/encounter.read system/soap_note.read"
     allow_insecure_http: bool = False
@@ -78,6 +80,18 @@ class OpenEMRSettings(BaseSettings):
     def private_key_file(self) -> Path:
         p = Path(self.private_key_path)
         return p if p.is_absolute() else PROJECT_ROOT / p
+
+    def private_key_bytes(self) -> bytes:
+        """The signing key: OPENEMR_PRIVATE_KEY if set (literal "\\n" allowed), else the key file."""
+        if self.private_key.strip():
+            return self.private_key.strip().replace("\\n", "\n").encode() + b"\n"
+        f = self.private_key_file
+        if not f.exists():
+            raise RuntimeError(
+                f"OpenEMR private key not found: set OPENEMR_PRIVATE_KEY or create {f} "
+                "(scripts/openemr_register.py)."
+            )
+        return f.read_bytes()
 
     def assert_transport_ok(self) -> None:
         if self.root.startswith("http://") and not self.allow_insecure_http:

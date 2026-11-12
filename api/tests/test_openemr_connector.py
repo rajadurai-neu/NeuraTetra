@@ -41,6 +41,19 @@ def test_rejects_plain_http_unless_allowed(settings):
     OpenEMRAuth(settings)
 
 
+def test_private_key_from_setting_overrides_file(settings):
+    """Azure: the PEM comes from an app setting (one line, literal \\n) instead of a file."""
+    settings.private_key_path = "/nonexistent/k.pem"
+    settings.private_key = settings._pem.decode().strip().replace("\n", "\\n")
+    assert OpenEMRAuth(settings)._private_key == settings._pem
+
+
+def test_missing_private_key_is_a_clear_error(settings):
+    settings.private_key_path = "/nonexistent/k.pem"
+    with pytest.raises(RuntimeError, match="OPENEMR_PRIVATE_KEY"):
+        OpenEMRAuth(settings)
+
+
 @respx.mock
 def test_client_credentials_assertion_and_token_cache(settings):
     seen = {}

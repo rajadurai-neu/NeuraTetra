@@ -80,6 +80,17 @@ With the client registered, the API pulls SOAP notes from OpenEMR and assesses t
 - Run once now (admin/QA): `POST /api/admin/openemr/sync`
 - Last run (admin/QA): `GET /api/admin/openemr/status`
 
+#### Turning intake on in Azure
+The deploy package never contains `.env` or `keys/`, so the App Service gets the same values as app settings,
+with the private key as text in `OPENEMR_PRIVATE_KEY`:
+```bash
+.venv/bin/python api/scripts/openemr_azure_settings.py > openemr-azure.secret.txt
+```
+Paste that JSON into **App Service → Settings → Environment variables → App settings → Advanced edit**
+(add to the existing list), **Apply**, then delete the file. Prefer a Key Vault reference for
+`OPENEMR_CLIENT_SECRET` and `OPENEMR_PRIVATE_KEY` once Key Vault is set up. If the settings are incomplete,
+the app still starts and logs `OpenEMR intake: disabled`.
+
 OpenEMR's standard API has no modality, participants, service code, telehealth consent/location or
 treatment plan. Notes from OpenEMR declare these as unavailable, and the rules that need them are skipped
 rather than reported as false "missing" issues. Start/end times come from the matching appointment.

@@ -105,8 +105,9 @@ az webapp config appsettings set -g $RG -n $APP --settings \
 
 ## OpenEMR intake
 
-Set the `OPENEMR_*` values from `api/.env.example` as app settings in the same way.
-Put the private key in an app setting or Key Vault, never in the package. `deploy` refuses to ship any file that contains a private key.
+Run `.venv/bin/python api/scripts/openemr_azure_settings.py` after registering the client. It prints every
+`OPENEMR_*` app setting as JSON for **App settings → Advanced edit**, including the private key as
+`OPENEMR_PRIVATE_KEY` (one line). Put the private key in an app setting or Key Vault, never in the package. `deploy` refuses to ship any file that contains a private key.
 
 ## Logs
 

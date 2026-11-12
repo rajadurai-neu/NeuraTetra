@@ -81,7 +81,27 @@ class OpenEMRClient:
     def practitioners(self) -> list[dict]:
         return self.api("practitioner")
 
-    # ---- FHIR (public metadata; resource reads need FHIR scopes) ----
+    # ---- FHIR R4 (read only; works with system/*.read scopes) ----
+    def fhir_read(self, resource: str, rid: str) -> dict:
+        return self._get(f"{self.s.fhir_url}/{resource}/{rid}") or {}
+
+    def fhir_search(self, resource: str, max_pages: int = 50, **params) -> list[dict]:
+        """All matching resources, following the Bundle's "next" links (only on this OpenEMR server)."""
+        out: list[dict] = []
+        url: str | None = f"{self.s.fhir_url}/{resource}"
+        query: dict | None = params or None
+        for _ in range(max_pages):
+            bundle = self._get(url, query) or {}
+            if bundle.get("resourceType") == "OperationOutcome":
+                raise OpenEMRError(f"FHIR {resource} search failed: {str(bundle)[:300]}")
+            out += [e["resource"] for e in bundle.get("entry", []) if e.get("resource")]
+            url = next((link["url"] for link in bundle.get("link", []) if link.get("relation") == "next"), None)
+            if not url or not url.startswith(self.s.fhir_url):  # never send our token to another host
+                break
+            query = None
+        return out
+
+    # ---- FHIR metadata (public) ----
     def fhir_metadata(self) -> dict:
         resp = self.http.get(f"{self.s.fhir_url}/metadata", headers={"Accept": "application/fhir+json"})
         resp.raise_for_status()

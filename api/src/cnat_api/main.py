@@ -24,10 +24,13 @@ sync = scheduler = None
 emr = OpenEMRSettings()
 if emr.configured:
     from cnat_api.connectors.openemr.client import OpenEMRClient
-    from cnat_api.jobs.openemr_sync import OpenEMRSync, SyncScheduler
+    from cnat_api.jobs.openemr_sync import FhirSource, OpenEMRSync, StandardApiSource, SyncScheduler
 
-    sync = OpenEMRSync(OpenEMRClient(emr), service, lookback_days=emr.lookback_days,
-                       default_program=emr.default_program)
+    reader = OpenEMRClient(emr)
+    source = (StandardApiSource(reader, emr.default_program) if emr.api == "standard"
+              else FhirSource(reader, emr.default_program))
+    sync = OpenEMRSync(source, service, lookback_days=emr.lookback_days)
+    log.info("OpenEMR intake: %s", "SOAP form (Standard API)" if emr.api == "standard" else "Clinical Notes (FHIR)")
     if emr.sync_minutes > 0:
         scheduler = SyncScheduler(sync, emr.sync_minutes)
         log.info("OpenEMR intake: polling every %s min", emr.sync_minutes)

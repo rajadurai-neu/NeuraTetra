@@ -67,22 +67,26 @@ Drop `--no-ai` once the `CNAT_AI_*` settings are in `api/.env` (Claude in Azure 
 .venv/bin/python api/scripts/openemr_register.py
 ```
 Then, as an OpenEMR admin:
-1. **Administration → System → API Clients**: enable "Clinical Notes Assessment Tool (Dev)".
-2. **Administration → Config → Connectors**: turn on the Standard REST API, its **system scopes**, and the FHIR API; set Site Address Override to the server URL.
+1. **Administration → Config → Connectors**: turn on **Enable OpenEMR Standard FHIR REST API** and **Enable OpenEMR FHIR System Scopes**, then Save.
+2. **Administration → System → API Clients**: enable "Clinical Notes Assessment Tool (FHIR)".
 
 Check it with `.venv/bin/python api/scripts/openemr_probe.py`.
 
 ### Draft-note intake
-With the client registered, the API pulls SOAP notes from OpenEMR and assesses the ones that changed
-(unchanged drafts are skipped, so polling costs no AI calls). Settings in `api/.env`:
+CNAT reads notes written in OpenEMR's **Clinical Notes** form (FHIR `DocumentReference`, category `clinical-note`).
+Clinicians start each section on its own line with `S:`, `O:`, `A:` and `P:`.
+OpenEMR 7.0.3 accepts system (no-user) tokens only on FHIR, so the SOAP form, which is Standard API only, can't be read
+with this kind of access. `OPENEMR_API=standard` switches to the SOAP form for OpenEMR versions that allow it.
+
+Unchanged notes are skipped, so polling costs no AI calls. Settings in `api/.env`:
 `OPENEMR_SYNC_MINUTES` (0 = off), `OPENEMR_LOOKBACK_DAYS`, `OPENEMR_DEFAULT_PROGRAM`.
 
 - Run once now (admin/QA): `POST /api/admin/openemr/sync`
 - Last run (admin/QA): `GET /api/admin/openemr/status`
 
-OpenEMR's standard API has no modality, participants, service code, telehealth consent/location or
-treatment plan. Notes from OpenEMR declare these as unavailable, and the rules that need them are skipped
-rather than reported as false "missing" issues. Start/end times come from the matching appointment.
+OpenEMR doesn't supply modality, participants, service code, telehealth consent/location, treatment plan or session
+times over FHIR, and on the dev server it gives no note author. Notes from OpenEMR declare these as unavailable, so the
+rules that need them are skipped instead of reported as false "missing" issues.
 
 ## Rules
 Rule wording, severities, CPT time ranges and the documentation deadline are **starter values** and must be

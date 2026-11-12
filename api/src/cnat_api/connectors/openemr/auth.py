@@ -63,7 +63,7 @@ class OpenEMRAuth:
         self.http = http or httpx.Client(timeout=settings.timeout_seconds)
         self._token: _Token | None = None
         self._lock = threading.Lock()
-        self._private_key = settings.private_key_file.read_bytes()
+        self._private_key = settings.private_key_bytes()
 
     def _client_assertion(self) -> str:
         now = int(time.time())

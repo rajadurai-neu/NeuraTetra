@@ -91,3 +91,13 @@ def test_retries_on_server_error(settings, monkeypatch):
 
 def test_client_has_no_write_methods():
     assert not any(m in dir(OpenEMRClient) for m in ("post", "put", "patch", "delete"))
+
+
+def test_private_key_from_base64_setting(tmp_path):
+    import base64
+    from cnat_api.config import OpenEMRSettings
+    from cnat_api.connectors.openemr.auth import generate_keypair
+    pem, _, _ = generate_keypair()
+    s = OpenEMRSettings(base_url="https://emr.example", client_id="c", private_key_path=str(tmp_path / "missing.pem"),
+                        private_key_b64=base64.b64encode(pem).decode())
+    assert s.private_key_bytes() == pem

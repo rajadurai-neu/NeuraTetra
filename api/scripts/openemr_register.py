@@ -44,7 +44,7 @@ def main() -> int:
 
     payload = {
         "application_type": "private",
-        "client_name": "Clinical Notes Assessment Tool (Dev)",
+        "client_name": "Clinical Notes Assessment Tool (FHIR)",
         # Required by OpenEMR's registration endpoint; unused by the backend flow.
         "redirect_uris": ["http://localhost:8000/oauth/callback"],
         "token_endpoint_auth_method": "client_secret_post",
@@ -67,11 +67,10 @@ def main() -> int:
     print("Granted scopes requested:", s.scopes)
     print(
         "\nNext, in OpenEMR as admin:\n"
-        "  - Administration > System > API Clients: open 'Clinical Notes Assessment Tool (Dev)' and Enable it.\n"
-        "  - Administration > Config > Connectors: make sure these are ON:\n"
-        "      * Enable OpenEMR Standard REST API\n"
-        "      * Enable OpenEMR Standard REST API system scopes\n"
-        "      * Enable OpenEMR FHIR REST API\n"
+        "  - Administration > System > API Clients: open 'Clinical Notes Assessment Tool (FHIR)' and Enable it.\n"
+        "  - Administration > Config > Connectors: make sure these are ON, then Save:\n"
+        "      * Enable OpenEMR Standard FHIR REST API\n"
+        "      * Enable OpenEMR FHIR System Scopes\n"
         "    and 'Site Address Override' = " + s.root + "\n"
         "Then run: python api/scripts/openemr_probe.py"
     )

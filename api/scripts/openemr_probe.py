@@ -1,24 +1,20 @@
-"""Check the OAuth client works and see what note data OpenEMR exposes.
+"""Check the OAuth client works and see what OpenEMR exposes over FHIR.
 
     python api/scripts/openemr_probe.py
 
-Prints counts and field names only, never note text or patient identifiers.
+Prints counts only, never note text or patient identifiers.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from datetime import date, timedelta
 
-ROOT = Path(__file__).resolve().parents[1]
-
-from cnat_api.config import OpenEMRSettings  # noqa: E402
-from cnat_api.connectors.openemr.client import OpenEMRClient, OpenEMRError  # noqa: E402
+from cnat_api.config import OpenEMRSettings
+from cnat_api.connectors.openemr.client import OpenEMRClient
 
 
 def step(name, fn):
     try:
-        out = fn()
-        print(f"[ok]   {name}: {out}")
+        print(f"[ok]   {name}: {fn()}")
         return True
     except Exception as e:  # noqa: BLE001
         print(f"[fail] {name}: {e}")
@@ -28,43 +24,21 @@ def step(name, fn):
 def main() -> int:
     s = OpenEMRSettings()
     c = OpenEMRClient(s)
-
     meta = c.fhir_metadata()
-    print(f"OpenEMR {meta['software']['version']}, FHIR {meta['fhirVersion']}")
-
+    print(f"OpenEMR {meta['software']['version']}, FHIR {meta['fhirVersion']}, intake API: {s.api}")
     if not step("token (client_credentials + private_key_jwt)", lambda: "issued" if c.auth.token() else "none"):
         return 1
-
-    patients: list[dict] = []
-
-    def _patients():
-        patients.extend(c.patients())
-        return f"{len(patients)} patients; fields={sorted(patients[0].keys())[:15] if patients else []}"
-
-    step("GET /api/patient", _patients)
-    step("GET /api/practitioner", lambda: f"{len(c.practitioners())} practitioners")
-
-    notes_found = 0
-    for p in patients[:10]:
-        try:
-            encs = c.encounters(p["uuid"])
-        except OpenEMRError as e:
-            print(f"[fail] encounters: {e}")
-            break
-        for e in encs[:10]:
-            pid, eid = p.get("pid"), e.get("eid") or e.get("encounter")
-            try:
-                notes = c.soap_notes(pid, eid)
-            except OpenEMRError as err:
-                print(f"[fail] soap_note: {err}")
-                break
-            if notes and notes_found == 0:
-                print(f"[ok]   SOAP note fields: {sorted(notes[0].keys())}")
-            notes_found += len(notes)
-    print(f"SOAP notes found across first 10 patients: {notes_found}")
-    if notes_found == 0:
-        print("  (No SOAP notes yet; add synthetic draft SOAP notes in OpenEMR to test.)")
-    return 0
+    since = (date.today() - timedelta(days=s.lookback_days)).isoformat()
+    ok = all([
+        step("Patient", lambda: f"{len(c.fhir_search('Patient', max_pages=1))} on first page"),
+        step("Encounter", lambda: f"{len(c.fhir_search('Encounter', max_pages=1))} on first page"),
+        step(f"Clinical notes since {since}",
+             lambda: f"{len(c.fhir_search('DocumentReference', category='clinical-note', date=f'ge{since}'))}"),
+    ])
+    if not ok:
+        print("\nIf these fail with 401: in OpenEMR, turn on 'Enable OpenEMR FHIR System Scopes' (Connectors) and Save,"
+              " and check the API client is enabled.")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

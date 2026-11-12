@@ -40,12 +40,14 @@ class OpenEMRSettings(BaseSettings):
     client_id: str = ""
     client_secret: str = ""
     private_key_path: str = "keys/openemr_private.pem"
+    private_key_b64: str = ""        # Azure: the PEM, base64-encoded, as an app setting (no key files)
     key_id: str = ""
     scopes: str = "api:oemr system/patient.read system/encounter.read system/soap_note.read"
     allow_insecure_http: bool = False
     timeout_seconds: float = 20.0
 
     # Intake (draft-note polling)
+    api: str = "fhir"                # fhir = Clinical Notes via FHIR | standard = SOAP form via Standard API
     sync_minutes: float = 0          # 0 = off; e.g. 5 = poll every 5 minutes
     lookback_days: int = 14          # only encounters this recent
     default_program: str | None = None
@@ -78,6 +80,12 @@ class OpenEMRSettings(BaseSettings):
     def private_key_file(self) -> Path:
         p = Path(self.private_key_path)
         return p if p.is_absolute() else PROJECT_ROOT / p
+
+    def private_key_bytes(self) -> bytes:
+        if self.private_key_b64.strip():
+            import base64
+            return base64.b64decode(self.private_key_b64.strip())
+        return self.private_key_file.read_bytes()
 
     def assert_transport_ok(self) -> None:
         if self.root.startswith("http://") and not self.allow_insecure_http:

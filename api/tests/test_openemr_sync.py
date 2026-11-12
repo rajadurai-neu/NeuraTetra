@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from cnat_api.connectors.openemr.mapper import OPENEMR_UNAVAILABLE, to_note_context
 from cnat_api.db.session import init_db, make_engine, make_session_factory
-from cnat_api.jobs.openemr_sync import OpenEMRSync
+from cnat_api.jobs.openemr_sync import OpenEMRSync, StandardApiSource
 from cnat_api.services.assessments import AssessmentService
 from cnat_api.web.app import create_app
 from cnat_api.web.security import AuthSettings
@@ -73,7 +73,7 @@ def env():
     init_db(engine)
     svc = AssessmentService(make_session_factory(engine), RULES, NoAIReviewer(), clock=lambda: NOW)
     fake = FakeOpenEMR()
-    sync = OpenEMRSync(fake, svc, lookback_days=14, default_program="Adult Outpatient", clock=lambda: NOW)
+    sync = OpenEMRSync(StandardApiSource(fake, "Adult Outpatient"), svc, lookback_days=14, clock=lambda: NOW)
     return svc, fake, sync
 
 

@@ -126,6 +126,8 @@ export interface SyncRun {
   assessed: number;
   unchanged: number;
   failed: number;
+  skipped_signed: number;
+  mode: "drafts" | "retro";
   failures: string[];
 }
 

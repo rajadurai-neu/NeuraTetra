@@ -1,6 +1,8 @@
 """HTTP API (FastAPI). Thin layer: checks access, calls the service, shapes the response."""
 from __future__ import annotations
 
+import logging
+
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date
@@ -19,6 +21,8 @@ from cnat_engine.domain import NoteContext, NoteType
 from cnat_api.services import reports
 from cnat_api.services.assessments import AssessmentService
 from cnat_api.timefmt import fmt_et
+
+log = logging.getLogger("cnat.api")
 
 MAX_BATCH = 100
 MAX_UPLOAD_BYTES = 200_000
@@ -161,9 +165,22 @@ def build_router() -> APIRouter:
 
     @r.post("/notes/{note_id}/reassess", response_model=AssessmentOut)
     def reassess(note_id: str, request: Request, user: User = Depends(current_user)):
+        """On demand. EHR notes: fetch the latest draft first; if the EHR can't be reached (or the note
+        isn't from it), re-run on the stored copy."""
         svc = _svc(request)
         _check_note_access(svc, user, note_id)
-        out = svc.reassess(note_id, actor=user.name)
+        latest = None
+        sync = getattr(request.app.state, "openemr_sync", None)
+        if sync is not None and note_id.startswith("openemr:"):
+            try:
+                latest = sync.fetch_latest(note_id)
+            except Exception as e:  # EHR down: still let the user re-run on what we have
+                log.warning("Re-assess %s: couldn't fetch the latest copy from OpenEMR (%s); using stored copy",
+                            note_id, e)
+        if latest is not None:
+            out = svc.assess_note(latest, actor=user.name, trigger="on_demand", force=True)
+        else:
+            out = svc.reassess(note_id, actor=user.name)
         return AssessmentOut.build(out.assessment, out.assessment_id, False, out.changes)
 
     # ---------- not applicable ----------
@@ -254,6 +271,14 @@ def build_router() -> APIRouter:
     def openemr_sync_now(request: Request):
         try:
             return _report(_sync(request).run_once())
+        except RuntimeError as e:
+            raise HTTPException(409, str(e))
+
+    @r.post("/admin/openemr/retro", dependencies=[Depends(require(Role.ADMIN, Role.QA))])
+    def openemr_retro_review(request: Request):
+        """QA retrospective review: assess notes already signed in the EHR (within the lookback window)."""
+        try:
+            return _report(_sync(request).run_once(retro=True))
         except RuntimeError as e:
             raise HTTPException(409, str(e))
 

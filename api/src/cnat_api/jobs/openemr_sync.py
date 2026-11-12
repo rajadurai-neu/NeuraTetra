@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Protocol
 
-from cnat_api.connectors.openemr.fhir_mapper import ref_id
+from cnat_api.connectors.openemr.fhir_mapper import find_appointment, note_text, ref_id
 from cnat_api.connectors.openemr.fhir_mapper import to_note_context as fhir_to_note
 from cnat_api.connectors.openemr.mapper import encounter_id, practitioner_index
 from cnat_api.connectors.openemr.mapper import to_note_context as soap_to_note
@@ -74,19 +74,19 @@ class StandardApiSource:
 class FhirSource:
     """Clinical Notes via FHIR (DocumentReference, category clinical-note). Works with system scopes."""
     label = "Clinical Notes (FHIR)"
+    PREFIX = "openemr:docref:"
 
     def __init__(self, reader: FhirReader, default_program: str | None = None):
         self.reader, self.default_program = reader, default_program
 
-    def fetch(self, since: date) -> tuple[list[NoteContext], list[str]]:
-        notes, failures = [], []
-        docs = self.reader.fhir_search("DocumentReference", category="clinical-note", date=f"ge{since.isoformat()}")
-        cache: dict[tuple[str, str], dict | None] = {}
+    # ---- shared helpers (one cache per fetch) ----
+    def _reader(self):
+        cache: dict[tuple, object] = {}
 
         def read(resource: str, rid: str | None) -> dict | None:
             if not rid:
                 return None
-            key = (resource, rid)
+            key = ("read", resource, rid)
             if key not in cache:
                 try:
                     cache[key] = self.reader.fhir_read(resource, rid)
@@ -95,20 +95,62 @@ class FhirSource:
                     cache[key] = None
             return cache[key]
 
+        def appointments(patient_id: str | None) -> list[dict]:
+            if not patient_id:
+                return []
+            key = ("appts", patient_id)
+            if key not in cache:
+                try:
+                    cache[key] = self.reader.fhir_search("Appointment", patient=patient_id)
+                except Exception as e:  # times are optional: without them the time rules are skipped
+                    log.warning("Could not read appointments for %s: %s", patient_id, e)
+                    cache[key] = []
+            return cache[key]
+
+        return read, appointments
+
+    def _build(self, doc: dict, read, appointments) -> NoteContext:
+        encounter = read("Encounter", ref_id(((doc.get("context") or {}).get("encounter") or [{}])[0], "Encounter"))
+        org = read("Organization", ref_id((encounter or {}).get("serviceProvider"), "Organization"))
+        author_id = next((ref_id(a, "Practitioner") for a in doc.get("author") or [] if a), None)
+        patient_id = ref_id(doc.get("subject"), "Patient")
+        dos = str(doc.get("date", ""))[:10]
+        appt = find_appointment(appointments(patient_id), date.fromisoformat(dos) if dos else None, author_id)
+        return fhir_to_note(
+            doc=doc, patient=read("Patient", patient_id), encounter=encounter,
+            practitioner=read("Practitioner", author_id), clinic=(org or {}).get("name"),
+            default_program=self.default_program, appointment=appt)
+
+    # ---- NoteSource ----
+    def fetch(self, since: date) -> tuple[list[NoteContext], list[str]]:
+        notes, failures = [], []
+        docs = self.reader.fhir_search("DocumentReference", category="clinical-note", date=f"ge{since.isoformat()}")
+        read, appointments = self._reader()
         for doc in docs:
             if doc.get("status") == "entered-in-error" or str(doc.get("date", ""))[:10] < since.isoformat():
                 continue
             try:
-                encounter = read("Encounter", ref_id(((doc.get("context") or {}).get("encounter") or [{}])[0], "Encounter"))
-                org = read("Organization", ref_id((encounter or {}).get("serviceProvider"), "Organization"))
-                author = next((a for a in doc.get("author") or [] if a), None)
-                notes.append(fhir_to_note(
-                    doc=doc, patient=read("Patient", ref_id(doc.get("subject"), "Patient")), encounter=encounter,
-                    practitioner=read("Practitioner", ref_id(author, "Practitioner")),
-                    clinic=(org or {}).get("name"), default_program=self.default_program))
+                notes.append(self._build(doc, read, appointments))
             except Exception as e:
                 failures.append(f"DocumentReference {doc.get('id')}: {str(e)[:200]}")
         return notes, failures
+
+    def fetch_one(self, note_id: str) -> NoteContext | None:
+        """Latest copy of one note from OpenEMR, with the client's earlier notes for the clone check."""
+        if not note_id.startswith(self.PREFIX):
+            return None
+        read, appointments = self._reader()
+        doc = self.reader.fhir_read("DocumentReference", note_id[len(self.PREFIX):])
+        note = self._build(doc, read, appointments)
+        patient_id = ref_id(doc.get("subject"), "Patient")
+        prior = []
+        if patient_id:
+            others = self.reader.fhir_search("DocumentReference", patient=patient_id, category="clinical-note")
+            earlier = sorted((d for d in others if d.get("id") != doc.get("id")
+                              and str(d.get("date", "")) < str(doc.get("date", ""))),
+                             key=lambda d: str(d.get("date", "")))
+            prior = [t for t in (note_text(d) for d in earlier[-5:]) if t]
+        return note.model_copy(update={"prior_note_texts": prior})
 
 
 @dataclass
@@ -122,6 +164,8 @@ class SyncReport:
     assessed: int = 0
     unchanged: int = 0
     failed: int = 0
+    skipped_signed: int = 0          # signed in the EHR: not assessed (drafts-only rule)
+    mode: str = "drafts"             # drafts | retro (QA retrospective review of signed notes)
     failures: list[str] = field(default_factory=list)
 
 
@@ -137,12 +181,13 @@ class OpenEMRSync:
     def running(self) -> bool:
         return self._lock.locked()
 
-    def run_once(self) -> SyncReport:
+    def run_once(self, retro: bool = False) -> SyncReport:
+        """Drafts only (default). retro=True: QA retrospective review of signed notes only."""
         if not self._lock.acquire(blocking=False):
             raise RuntimeError("A sync is already running.")
-        report = SyncReport(started_at=self.clock())
+        report = SyncReport(started_at=self.clock(), mode="retro" if retro else "drafts")
         try:
-            self._run(report)
+            self._run(report, retro)
         except Exception as e:  # connection/auth failure: whole run fails -> alert
             report.ok, report.error = False, str(e)[:500]
             log.error("OpenEMR sync failed: %s", e)
@@ -151,11 +196,12 @@ class OpenEMRSync:
             self.last = report
             self._lock.release()
         if report.ok:
-            log.info("OpenEMR sync: %s notes seen, %s assessed, %s unchanged, %s failed",
-                     report.notes_seen, report.assessed, report.unchanged, report.failed)
+            log.info("OpenEMR sync (%s): %s notes seen, %s assessed, %s unchanged, %s signed skipped, %s failed",
+                     report.mode, report.notes_seen, report.assessed, report.unchanged,
+                     report.skipped_signed, report.failed)
         return report
 
-    def _run(self, report: SyncReport) -> None:
+    def _run(self, report: SyncReport, retro: bool) -> None:
         since = (self.clock() - timedelta(days=self.lookback_days)).date()
         notes, failures = self.source.fetch(since)
         report.failed += len(failures)
@@ -173,17 +219,31 @@ class OpenEMRSync:
             for note in client_notes:
                 report.notes_seen += 1
                 try:
-                    out = self.service.assess_note(note.model_copy(update={"prior_note_texts": prior[-5:]}),
-                                                   actor=ACTOR, trigger="schedule")
-                    if out.reused:
-                        report.unchanged += 1
+                    if note.is_signed and not retro:
+                        # Drafts only. A draft CNAT already assessed is now signed: record it, so
+                        # "signed with open issues" is reported.
+                        report.skipped_signed += 1
+                        self.service.note_signed_in_ehr(note.note_id)
+                    elif retro and not note.is_signed:
+                        pass                                   # retrospective review covers signed notes only
                     else:
-                        report.assessed += 1
+                        out = self.service.assess_note(
+                            note.model_copy(update={"prior_note_texts": prior[-5:]}), actor=ACTOR,
+                            trigger="retro" if retro else "schedule", force=retro)
+                        if out.reused:
+                            report.unchanged += 1
+                        else:
+                            report.assessed += 1
                 except Exception as e:  # one bad note shouldn't stop the run
                     report.failed += 1
                     report.failures.append(f"{note.note_id}: {str(e)[:200]}")
                     log.warning("Could not assess OpenEMR note %s: %s", note.note_id, e)
                 prior.append(note.text)
+
+    def fetch_latest(self, note_id: str) -> NoteContext | None:
+        """Latest copy of one note from the EHR (on-demand re-assessment). None if the source can't."""
+        fetch_one = getattr(self.source, "fetch_one", None)
+        return fetch_one(note_id) if fetch_one else None
 
 
 class SyncScheduler:

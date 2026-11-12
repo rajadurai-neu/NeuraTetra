@@ -83,11 +83,13 @@ with this kind of access. `OPENEMR_API=standard` switches to the SOAP form for O
 Unchanged notes are skipped, so polling costs no AI calls. Settings in `api/.env`:
 `OPENEMR_SYNC_MINUTES` (0 = off), `OPENEMR_LOOKBACK_DAYS`, `OPENEMR_DEFAULT_PROGRAM`.
 
-- Run once now (admin/QA): `POST /api/admin/openemr/sync`
+- Only drafts are assessed. QA retrospective review of signed notes: `POST /api/admin/openemr/retro`
+- Run once now (admin/QA): `POST /api/admin/openemr/sync`. Both also have buttons on the **OpenEMR sync** page
 - Last run (admin/QA): `GET /api/admin/openemr/status`
 
-OpenEMR doesn't supply modality, participants, service code, telehealth consent/location, treatment plan or session
-times over FHIR, and on the dev server it gives no note author. Notes from OpenEMR declare these as unavailable, so the
+Session times come from a same-day FHIR Appointment, and modality from the visit's class. OpenEMR doesn't
+supply participants, service code, telehealth consent/location or treatment plan over FHIR, and on the dev
+server it gives no note author. Notes from OpenEMR declare these as unavailable, so the
 rules that need them are skipped instead of reported as false "missing" issues.
 
 ## Rules

@@ -141,13 +141,13 @@ sequenceDiagram
     Src->>O: GET DocumentReference?category=clinical-note&date=ge...
     O-->>Src: notes (base64 text with S:/O:/A:/P:)
     loop each note
-        Src->>O: GET Patient, Encounter, Organization, Practitioner (cached)
-        O-->>Src: chart number, clinic, author (if any)
+        Src->>O: GET Patient, Encounter, Organization, Practitioner, Appointment (cached)
+        O-->>Src: chart number, clinic, visit class, author and session times (if any)
         Src->>Src: map to NoteContext<br/>(fields OpenEMR lacks = "unavailable")
     end
     Src-->>S: notes + per-note failures
     S->>S: group by client, oldest first,<br/>attach up to 5 prior notes (clone check)
-    loop each note
+    loop each draft (signed notes: skipped, or retrospective review only)
         S->>Svc: assess_note(note)
         Svc->>DB: upsert note, compare content hash
         alt text unchanged
@@ -160,6 +160,15 @@ sequenceDiagram
     end
     S->>S: store SyncReport (shown on the OpenEMR sync page)
 ```
+
+- **Drafts only:** notes OpenEMR reports as signed are skipped. If CNAT had assessed one as a draft, the
+  signing is recorded, which feeds "signed with open issues". **Retrospective review** (QA/Admin, on the
+  OpenEMR sync page) assesses signed notes only, recorded with trigger `retro`.
+- **Re-assess** on a note page fetches the latest copy of that note from OpenEMR first. If OpenEMR can't be
+  reached, it re-runs on the stored copy.
+- **Session times** come from a same-day FHIR `Appointment`, preferring the note author's. **Modality** comes
+  from the visit's class: Ambulatory or Home health = in person, Virtual = video. Audio-only can't be told
+  apart from video.
 
 Why FHIR and the Clinical Notes form: OpenEMR 7.0.3 accepts system (no-user) tokens only on its FHIR
 API, and the SOAP form is not exposed over FHIR. `OPENEMR_API=standard` switches to the SOAP form for

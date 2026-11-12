@@ -66,6 +66,7 @@ export const api = {
   me: () => request<Me>("/me"),
   syncStatus: () => request<SyncStatus>("/admin/openemr/status"),
   syncNow: () => request<{ last_run: SyncRun }>("/admin/openemr/sync", { method: "POST" }),
+  retroReview: () => request<{ last_run: SyncRun }>("/admin/openemr/retro", { method: "POST" }),
   authConfig: () => request<{ mode: AuthMode }>("/auth/config"),
   login: (username: string, password: string) =>
     request<Me>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),

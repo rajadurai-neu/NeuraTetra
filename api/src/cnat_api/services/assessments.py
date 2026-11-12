@@ -142,6 +142,15 @@ class AssessmentService:
             repo.audit(s, user, "note_signed", "note", note_id, now, {"open_issues": open_issues})
             return open_issues
 
+    def note_signed_in_ehr(self, note_id: str) -> bool | None:
+        """The EHR reports this note as signed. If CNAT tracks it as a draft, record the signing.
+        Returns signed-with-open-issues, or None if the note is unknown or already recorded."""
+        with unit_of_work(self.sessions) as s:
+            row = repo.get_note(s, note_id)
+            if row is None or row.is_signed:
+                return None
+        return self.record_signed(note_id)
+
     # ---- read ----
     def get_results(self, note_id: str, viewer: str) -> Assessment | None:
         now = self.clock()

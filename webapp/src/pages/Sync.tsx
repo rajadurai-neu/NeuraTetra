@@ -51,15 +51,16 @@ export function Sync() {
     return () => window.clearInterval(t);
   }, []);
 
-  async function syncNow() {
+  async function start(kind: "drafts" | "retro") {
     setBusy(true);
     setMessage(null);
     try {
-      const r = await api.syncNow();
+      const r = kind === "retro" ? await api.retroReview() : await api.syncNow();
       const run = r.last_run;
+      const what = kind === "retro" ? "Retrospective review" : "Sync";
       setMessage(run.ok
-        ? `Sync finished: ${run.assessed} assessed, ${run.unchanged} unchanged, ${run.failed} failed.`
-        : "Sync failed. See the details below.");
+        ? `${what} finished: ${run.assessed} assessed, ${run.unchanged} unchanged, ${run.failed} failed.`
+        : `${what} failed. See the details below.`);
     } catch (e) {
       setMessage(e instanceof ApiError && e.status === 409
         ? "A sync is already running. The page refreshes when it's done."
@@ -78,12 +79,19 @@ export function Sync() {
       <div className="page-head">
         <div>
           <h1>OpenEMR sync</h1>
-          <p className="muted">Draft notes are pulled from OpenEMR and assessed automatically. Notes that haven't changed are skipped.</p>
+          <p className="muted">Draft notes are pulled from OpenEMR and assessed automatically. Notes that haven't changed are
+            skipped, and signed notes are only assessed in a QA retrospective review.</p>
         </div>
         {!notConnected && (
-          <button className="primary" type="button" onClick={syncNow} disabled={busy || status?.running}>
-            {busy || status?.running ? "Syncing…" : "Sync now"}
-          </button>
+          <div className="row">
+            <button type="button" onClick={() => start("retro")} disabled={busy || status?.running}
+              title="Assess notes already signed in OpenEMR (QA retrospective review)">
+              Retrospective review
+            </button>
+            <button className="primary" type="button" onClick={() => start("drafts")} disabled={busy || status?.running}>
+              {busy || status?.running ? "Syncing…" : "Sync now"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -104,7 +112,8 @@ export function Sync() {
               <div>
                 <RunBadge run={run} running={status.running} />
                 <p className="small muted" style={{ margin: "8px 0 0" }}>
-                  {run ? <>Last run finished {run.finished_at_display}</> : "No sync has run since the app started."}
+                  {run ? <>Last {run.mode === "retro" ? "retrospective review" : "sync"} finished {run.finished_at_display}</>
+                    : "No sync has run since the app started."}
                 </p>
               </div>
               <dl className="sync-facts">
@@ -120,8 +129,12 @@ export function Sync() {
             <>
               <div className="grid grid-4">
                 <div className="card stat"><div className="value">{run.notes_seen}</div><div className="label">Notes found</div></div>
-                <div className="card stat"><div className="value">{run.assessed}</div><div className="label">Assessed (new or changed)</div></div>
+                <div className="card stat"><div className="value">{run.assessed}</div><div className="label">
+                  {run.mode === "retro" ? "Signed notes assessed" : "Assessed (new or changed)"}</div></div>
                 <div className="card stat"><div className="value">{run.unchanged}</div><div className="label">Unchanged, skipped</div></div>
+                {run.mode === "drafts" && (
+                  <div className="card stat"><div className="value">{run.skipped_signed}</div><div className="label">Signed, not assessed</div></div>
+                )}
                 <div className="card stat"><div className="value">{run.failed}</div><div className="label">Failed</div></div>
               </div>
 

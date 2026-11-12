@@ -6,20 +6,25 @@ OpenEMR 7.0.3 shapes (seen on the dev server):
   Patient {id, identifier[type PT].value (the chart number), name}
   Encounter {id, period.start, serviceProvider: Organization/<uuid>, participant? (often absent)}
   Practitioner {id, name[0].given/family, qualification?}
+  Appointment {id, start, end, participant[].actor: Patient/<uuid> | Practitioner/<uuid>}
 The "Clinical Notes" form text carries the S:/O:/A:/P: headings, so sections are split from the text.
 """
 from __future__ import annotations
 
 import base64
-from datetime import date
+from datetime import date, datetime
 
-from cnat_engine.domain import NoteContext, NoteType
+from cnat_engine.domain import Modality, NoteContext, NoteType
 from cnat_engine.rules.checks import split_soap
 
 from cnat_api.connectors.openemr.mapper import OPENEMR_UNAVAILABLE
 
-# FHIR has no appointment times on this server, so time/duration rules are skipped too.
-FHIR_UNAVAILABLE = OPENEMR_UNAVAILABLE + ["start_time"]
+# Session times come from a same-day Appointment; modality from the visit's class. Without them,
+# the rules needing them are skipped (see to_note_context).
+FHIR_UNAVAILABLE = [f for f in OPENEMR_UNAVAILABLE if f != "modality"]
+
+# Encounter.class (v3 ActCode) -> modality. Audio-only and video can't be told apart: both are "VR".
+CLASS_MODALITY = {"AMB": Modality.IN_PERSON, "HH": Modality.IN_PERSON, "VR": Modality.VIDEO}
 
 
 def ref_id(ref: dict | None, resource: str) -> str | None:
@@ -42,6 +47,31 @@ def _date(v) -> date | None:
         return date.fromisoformat(str(v)[:10]) if v else None
     except ValueError:
         return None
+
+
+def _dt(v) -> datetime | None:
+    """FHIR instant -> naive datetime as written (OpenEMR labels clinic-local times with an offset)."""
+    try:
+        return datetime.fromisoformat(str(v)).replace(tzinfo=None) if v else None
+    except ValueError:
+        return None
+
+
+def modality(encounter: dict | None) -> Modality | None:
+    code = (((encounter or {}).get("class") or {}).get("code") or "").upper()
+    return CLASS_MODALITY.get(code)
+
+
+def find_appointment(appointments: list[dict], dos: date | None, practitioner_id: str | None) -> dict | None:
+    """Same-day appointment; prefer one with the note's author. Ambiguous (several, none matching) -> None."""
+    if not dos:
+        return None
+    same_day = [a for a in appointments if _date(a.get("start")) == dos and a.get("status") != "cancelled"]
+    if practitioner_id:
+        for a in same_day:
+            if any(ref_id(p.get("actor"), "Practitioner") == practitioner_id for p in a.get("participant") or []):
+                return a
+    return same_day[0] if len(same_day) == 1 else None
 
 
 def chart_number(patient: dict | None) -> str | None:
@@ -70,14 +100,21 @@ def credentials(practitioner: dict | None) -> str | None:
 
 
 def to_note_context(*, doc: dict, patient: dict | None, encounter: dict | None, practitioner: dict | None,
-                    clinic: str | None, default_program: str | None = None) -> NoteContext:
+                    clinic: str | None, default_program: str | None = None,
+                    appointment: dict | None = None) -> NoteContext:
     text = note_text(doc)
     clinician = person_name(practitioner)
+    start, end = _dt((appointment or {}).get("start")), _dt((appointment or {}).get("end"))
+    mod = modality(encounter)
     unavailable = list(FHIR_UNAVAILABLE)
     if not clinician:
         unavailable += ["clinician_name", "clinician_credentials"]   # OpenEMR sent no author
     elif not credentials(practitioner):
         unavailable.append("clinician_credentials")
+    if not (start and end):
+        unavailable.append("start_time")       # no matching appointment: can't say times are missing
+    if mod is None:
+        unavailable.append("modality")
 
     patient_id = ref_id(doc.get("subject"), "Patient") or ""
     return NoteContext(
@@ -90,6 +127,9 @@ def to_note_context(*, doc: dict, patient: dict | None, encounter: dict | None, 
         # The note's own date first: it's what the clinician entered for this session.
         date_of_service=_date(doc.get("date")) or _date(((doc.get("context") or {}).get("period") or {}).get("start"))
         or _date(((encounter or {}).get("period") or {}).get("start")),
+        start_time=start if (start and end) else None,
+        end_time=end if (start and end) else None,
+        modality=mod,
         clinician_name=clinician,
         clinician_credentials=credentials(practitioner),
         program=default_program,

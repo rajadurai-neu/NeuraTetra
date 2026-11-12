@@ -92,7 +92,20 @@ The pipeline only deploys code. The App Service, Azure SQL and sign-in are creat
 deploy/azure.sh deploy
 ```
 
-## Turning on Claude (Azure AI Foundry)
+## Turning on AI review
+
+The rule checks always run. The AI review adds quality-measure scores and wording findings, and it can use any of these:
+
+| `CNAT_AI_PROVIDER` | Model | Other settings |
+|---|---|---|
+| `foundry` | Claude in Azure AI Foundry | `CNAT_AI_FOUNDRY_RESOURCE`, `CNAT_AI_FOUNDRY_API_KEY`, `CNAT_AI_MODEL` (deployment name) |
+| `azure_openai` | GPT in Azure OpenAI (when Claude isn't available on the subscription) | `CNAT_AI_AZURE_OPENAI_ENDPOINT`, `CNAT_AI_AZURE_OPENAI_API_KEY`, `CNAT_AI_MODEL` (deployment name) |
+| `anthropic` | Claude through the Anthropic API | `CNAT_AI_ANTHROPIC_API_KEY`, `CNAT_AI_MODEL` |
+| `none` | Rule checks only | |
+
+Whichever you use, the model must return the same fixed result structure, and any finding that doesn't quote the note exactly is dropped.
+
+### Claude in Azure AI Foundry
 
 Deploy a Claude model in Azure AI Foundry, then run:
 

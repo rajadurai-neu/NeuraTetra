@@ -1,4 +1,4 @@
-"""Pick the Claude client from settings. Azure AI Foundry in Azure; Anthropic API as a local fallback."""
+"""Pick the AI reviewer from settings: Claude (Azure AI Foundry or Anthropic API), Azure OpenAI (GPT), or none."""
 from __future__ import annotations
 
 import logging
@@ -15,18 +15,32 @@ log = logging.getLogger("cnat.ai")
 class AISettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CNAT_AI_", env_file=PROJECT_ROOT / ".env", extra="ignore")
 
-    provider: str = "foundry"          # foundry | anthropic | none
+    provider: str = "foundry"          # foundry | anthropic | azure_openai | none
     model: str = "claude-opus-5-5"     # Foundry: your deployment name
     effort: str = "medium"
     foundry_resource: str = ""         # Azure AI Foundry resource name
     foundry_api_key: str = ""          # from the Foundry resource's Keys page
     anthropic_api_key: str = ""
+    # Azure OpenAI (GPT): when Claude isn't available on the subscription. CNAT_AI_MODEL = deployment name.
+    azure_openai_endpoint: str = ""    # e.g. https://<resource>.openai.azure.com
+    azure_openai_api_key: str = ""
+    azure_openai_api_version: str = "2024-10-21"
 
 
 def build_reviewer(s: AISettings | None = None) -> Reviewer:
     s = s or AISettings()
     if s.provider == "none":
         return NoAIReviewer()
+    if s.provider == "azure_openai":
+        if not (s.azure_openai_endpoint and s.azure_openai_api_key):
+            log.warning("AI review OFF: CNAT_AI_AZURE_OPENAI_ENDPOINT / CNAT_AI_AZURE_OPENAI_API_KEY not set (rules only)")
+            return NoAIReviewer()
+        import openai
+
+        from cnat_api.providers.azure_openai import AzureOpenAIReviewer
+        client = openai.AzureOpenAI(azure_endpoint=s.azure_openai_endpoint, api_key=s.azure_openai_api_key,
+                                    api_version=s.azure_openai_api_version)
+        return AzureOpenAIReviewer(client, deployment=s.model)
     import anthropic
 
     if s.provider == "foundry":

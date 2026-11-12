@@ -11,3 +11,4 @@ node_modules/
 build/
 deploy/.azure-state
 *.secret.txt
+.claude/launch.json

@@ -113,3 +113,26 @@ export interface RulesetOut {
   rules: Rule[];
   quality_measures: { id: string; name: string; description: string }[];
 }
+
+export interface SyncRun {
+  started_at: string;
+  finished_at: string | null;
+  started_at_display: string;
+  finished_at_display: string;
+  ok: boolean;
+  error: string | null;
+  patients: number;
+  notes_seen: number;
+  assessed: number;
+  unchanged: number;
+  failed: number;
+  failures: string[];
+}
+
+export interface SyncStatus {
+  scheduled_every_minutes: number | null;
+  source: string | null;
+  lookback_days: number;
+  running: boolean;
+  last_run: SyncRun | null;
+}

@@ -46,6 +46,7 @@ class NoteSource(Protocol):
 
 class StandardApiSource:
     """SOAP form via the Standard REST API: patients -> encounters -> soap_note."""
+    label = "SOAP form (Standard API)"
 
     def __init__(self, reader: OpenEMRReader, default_program: str | None = None):
         self.reader, self.default_program = reader, default_program
@@ -72,6 +73,7 @@ class StandardApiSource:
 
 class FhirSource:
     """Clinical Notes via FHIR (DocumentReference, category clinical-note). Works with system scopes."""
+    label = "Clinical Notes (FHIR)"
 
     def __init__(self, reader: FhirReader, default_program: str | None = None):
         self.reader, self.default_program = reader, default_program
@@ -130,6 +132,10 @@ class OpenEMRSync:
         self.lookback_days, self.clock = lookback_days, clock
         self.last: SyncReport | None = None
         self._lock = threading.Lock()
+
+    @property
+    def running(self) -> bool:
+        return self._lock.locked()
 
     def run_once(self) -> SyncReport:
         if not self._lock.acquire(blocking=False):

@@ -1,5 +1,5 @@
 import type {
-  AssessmentOut, AuthMode, BatchResult, HistoryItem, Me, QueueItem, RulesetOut, Summary,
+  AssessmentOut, AuthMode, BatchResult, HistoryItem, Me, QueueItem, RulesetOut, Summary, SyncRun, SyncStatus,
 } from "./types";
 
 // Local dev only: the API trusts X-Dev-User / X-Dev-Role when CNAT_DEV_AUTH=1.
@@ -64,6 +64,8 @@ const qs = (params: Record<string, string | number | boolean | undefined | null>
 
 export const api = {
   me: () => request<Me>("/me"),
+  syncStatus: () => request<SyncStatus>("/admin/openemr/status"),
+  syncNow: () => request<{ last_run: SyncRun }>("/admin/openemr/sync", { method: "POST" }),
   authConfig: () => request<{ mode: AuthMode }>("/auth/config"),
   login: (username: string, password: string) =>
     request<Me>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),

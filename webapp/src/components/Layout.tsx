@@ -17,6 +17,7 @@ export function Layout() {
           <NavLink to="/new">Assess a note</NavLink>
           {canSeeReports && <NavLink to="/dashboard">Dashboard</NavLink>}
           <NavLink to="/rules">Rules</NavLink>
+          {has("qa", "admin") && <NavLink to="/sync">OpenEMR sync</NavLink>}
         </nav>}
         <div className="user">
           {mode === "password" && me ? (

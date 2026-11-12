@@ -246,7 +246,9 @@ def build_router() -> APIRouter:
     def openemr_status(request: Request):
         sync = _sync(request)
         sched = getattr(request.app.state, "openemr_scheduler", None)
-        return {"scheduled_every_minutes": sched.interval / 60 if sched else None, **_report(sync.last)}
+        return {"scheduled_every_minutes": sched.interval / 60 if sched else None,
+                "source": getattr(sync.source, "label", None), "lookback_days": sync.lookback_days,
+                "running": sync.running, **_report(sync.last)}
 
     @r.post("/admin/openemr/sync", dependencies=[Depends(require(Role.ADMIN, Role.QA))])
     def openemr_sync_now(request: Request):

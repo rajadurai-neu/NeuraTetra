@@ -132,7 +132,9 @@ def test_admin_endpoints(env):
     svc, _, sync = env
     client = TestClient(create_app(svc, AuthSettings(dev_auth=True), openemr_sync=sync))
     admin = {"X-Dev-User": "a", "X-Dev-Role": "admin"}
-    assert client.get("/api/admin/openemr/status", headers=admin).json()["last_run"] is None
+    st = client.get("/api/admin/openemr/status", headers=admin).json()
+    assert st["last_run"] is None and st["source"] == "SOAP form (Standard API)" and st["lookback_days"] == 14
+    assert st["running"] is False
     r = client.post("/api/admin/openemr/sync", headers=admin).json()
     assert r["last_run"]["assessed"] == 2 and r["last_run"]["finished_at_display"].endswith(" ET")
     clin = {"X-Dev-User": "Synthetic Clinician", "X-Dev-Role": "clinician"}

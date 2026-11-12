@@ -9,6 +9,7 @@ import { NoteResult } from "./pages/NoteResult";
 import { Queue } from "./pages/Queue";
 import { Rules } from "./pages/Rules";
 import { SignIn } from "./pages/SignIn";
+import { Sync } from "./pages/Sync";
 import "./styles.css";
 
 function Gate() {
@@ -31,6 +32,7 @@ function Gate() {
       <Route path="new" element={<NewNote />} />
       <Route path="notes/:id" element={<NoteResult />} />
       <Route path="dashboard" element={<Dashboard />} />
+      <Route path="sync" element={<Sync />} />
       <Route path="rules" element={<Rules />} />
       <Route path="*" element={<p className="empty">Page not found.</p>} />
     </Routes>

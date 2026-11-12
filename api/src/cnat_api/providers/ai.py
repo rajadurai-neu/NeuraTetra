@@ -56,4 +56,5 @@ def build_reviewer(s: AISettings | None = None) -> Reviewer:
         client = anthropic.Anthropic(api_key=s.anthropic_api_key or None)
     else:
         raise ValueError(f"Unknown CNAT_AI_PROVIDER: {s.provider}")
-    return ClaudeReviewer(client, model=s.model, effort=s.effort)
+    # Server-side refusal fallback exists on the Anthropic API only (not Foundry).
+    return ClaudeReviewer(client, model=s.model, effort=s.effort, refusal_fallback=s.provider == "anthropic")

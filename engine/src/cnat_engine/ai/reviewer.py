@@ -111,17 +111,24 @@ def to_review_result(out: AIReviewOutput, note: NoteContext, measures: list[Qual
 
 
 class ClaudeReviewer:
-    """Claude via the official Anthropic SDK. `client` is Anthropic() or AnthropicFoundry()."""
+    """Claude via the official Anthropic SDK. `client` is Anthropic() or AnthropicFoundry().
 
-    def __init__(self, client, model: str, effort: str = "medium"):
+    refusal_fallback=True (Anthropic API only): if the model declines, the API re-runs the request on a
+    fallback Claude model inside the same call, so notes about self-harm etc. still get reviewed.
+    """
+
+    FALLBACK_BETA = "server-side-fallback-2026-07-01"
+
+    def __init__(self, client, model: str, effort: str = "medium", refusal_fallback: bool = False):
         self.client = client
         self.model = model
         self.effort = effort
+        self.refusal_fallback = refusal_fallback
         self.prompt_version = PROMPT_VERSION
         self.system_prompt = PROMPT_FILE.read_text()
 
     def review(self, note: NoteContext, measures: list[QualityMeasure]) -> ReviewResult:
-        response = self.client.messages.parse(
+        request = dict(
             model=self.model,
             max_tokens=16000,
             system=self.system_prompt,
@@ -129,6 +136,10 @@ class ClaudeReviewer:
             output_format=AIReviewOutput,
             output_config={"effort": self.effort},
         )
+        if self.refusal_fallback:
+            response = self.client.beta.messages.parse(**request, betas=[self.FALLBACK_BETA], fallbacks="default")
+        else:
+            response = self.client.messages.parse(**request)
         if response.stop_reason == "refusal":
             raise AIRefusalError("The model declined to review this note.")
         if response.stop_reason == "max_tokens" or response.parsed_output is None:
